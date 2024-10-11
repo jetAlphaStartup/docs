@@ -1,0 +1,99 @@
+---
+title: "Verify Email"
+openapi: "POST /auth/verify-email"
+---
+
+Verify the email using the provided verification code.
+
+### Endpoint
+
+```
+POST /auth/verify-email
+```
+
+### Request
+
+#### Headers
+
+| Name          | Required | Description      |
+| ------------- | -------- | ---------------- |
+| Authorization | Yes      | Bearer token     |
+| Content-Type  | Yes      | application/json |
+
+#### Body
+
+```json
+{
+  "code": "123456"
+}
+```
+
+| Field | Type   | Required | Description       |
+| ----- | ------ | -------- | ----------------- |
+| code  | string | Yes      | Verification code |
+
+### Response
+
+#### Success Response
+
+**Code:** 200 OK
+
+**Content example:**
+
+```json
+{
+  "message": "Email verified successfully."
+}
+```
+
+| Field   | Type   | Description                        |
+| ------- | ------ | ---------------------------------- |
+| message | string | Confirmation of email verification |
+
+#### Error Response
+
+**Code:** 400 BAD REQUEST
+
+**Content example:**
+
+```json
+{
+  "statusCode": 400,
+  "message": "Invalid verification code",
+  "error": "Bad Request"
+}
+```
+
+### Notes
+
+- The user must be authenticated (JWT required).
+- The provided verification code should match the code sent to the user's email.
+- Once verified, the user's email will be marked as verified.
+
+### Example Usage
+
+#### JavaScript (Fetch API)
+
+```javascript
+async function verifyEmail(code, token) {
+  const response = await fetch("http://your-api-url/auth/verify-email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ code }),
+  });
+
+  if (response.ok) {
+    console.log("Email verified successfully.");
+  } else {
+    console.error("Failed to verify email.");
+  }
+}
+```
+
+### Security Considerations
+
+- Use HTTPS to prevent interception of the token and code.
+- Ensure the code is valid and not expired before verification.

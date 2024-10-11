@@ -1,72 +1,115 @@
 ---
-title: "sign in by email"
-openapi: "POST /sign-in"
+title: "sign in"
+openapi: "POST /auth/signin"
 ---
 
-# Auth API Documentation
+Authenticate a user and retrieve a JWT token.
 
-This API provides authentication functionality, including login and fetching user information. The user must provide an access token to access protected routes.
+### Endpoint
 
-## API Endpoints
+```
+POST /auth/signin
+```
 
-### Login
+### Request
 
-- **Endpoint**: `POST /auth/login`
-- **Description**: Authenticates a user with email and password, returning an access token if successful.
-- **Request Body**:
-  - `email` (string): The user's email.
-  - `password` (string): The user's password.
-- **Response**: A JSON object containing the access token and user information.
+#### Headers
 
-  **Example Request**:
+| Name         | Required | Description      |
+| ------------ | -------- | ---------------- |
+| Content-Type | Yes      | application/json |
 
-  ```javascript
-  fetch("http://localhost:3000/auth/login", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      email: "example@example.com",
-      password: "password123",
-    }),
-  })
-    .then((response) => response.json())
-    .then((data) => console.log(data))
-    .catch((error) => console.error("Error:", error));
-  ```
+#### Body
 
-### Get User Info
+```json
+{
+  "email": "user@example.com",
+  "password": "userpassword"
+}
+```
 
-- **Endpoint**: `GET /auth/user-info`
-- **Description**: Retrieves the authenticated user's information. The user's ID is stored in the access token, so no need to pass it separately.
-- **Headers**:
-  - `Authorization`: Bearer token (e.g., `Bearer eyJhbGciOiJIUNiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlMWNhMjA4OC02OTQyLTQwZTAtYjBjMS01OTYyZjY4ODlhZGYiLCJlbWFpbCI6Im1haGRpLmNoYWhyaTU1QGdtYWlsLmNvbSIsImlhdCI6MTcyMzg1MzU0NiwiZXhwIjoxNzIzOTM5OTQ2fQ.6hrCK4z2bEvP021qgxsCQ87mt-4rKur_XFpXzwlSUMU`).
-- **Response**: A JSON object representing the authenticated user's information.
+| Field    | Type   | Required | Description     |
+| -------- | ------ | -------- | --------------- |
+| email    | string | Yes      | User's email    |
+| password | string | Yes      | User's password |
 
-  **Example Request**:
+### Response
 
-  ```javascript
-  fetch("http://localhost:3000/auth/user-info", {
-    method: "GET",
-    headers: {
-      Authorization:
-        "Bearer eyJhbGciOiJIUNiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlMWNhMjA4OC02OTQyLTQwZTAtYjBjMS01OTYyZjY4ODlhZGYiLCJlbWFpbCI6Im1haGRpLmNoYWhyaTU1QGdtYWlsLmNvbSIsImlhdCI6MTcyMzg1MzU0NiwiZXhwIjoxNzIzOTM5OTQ2fQ.6hrCK4z2bEvP021qgxsCQ87mt-4rKur_XFpXzwlSUMU",
-    },
-  })
-    .then((response) => response.json())
-    .then((data) => console.log(data))
-    .catch((error) => console.error("Error:", error));
-  ```
+#### Success Response
 
-## Authentication
+**Code:** 200 OK
 
-- The access token must be included in the `Authorization` header in the format `Bearer <token>` when accessing protected routes like `/auth/user-info`.
-- The user ID is stored within the access token, so there is no need to pass the user ID separately.
+**Content example:**
 
-## Error Handling
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
 
-The API uses standard HTTP status codes to indicate the success or failure of requests. Common error responses include:
+| Field | Type   | Description                          |
+| ----- | ------ | ------------------------------------ |
+| token | string | JWT token for authenticated sessions |
 
-- **401 Unauthorized**: When the access token is missing, invalid, or expired.
-- **500 Internal Server Error**: When there is an error processing the request.
+#### Error Response
+
+**Code:** 401 UNAUTHORIZED
+
+**Content example:**
+
+```json
+{
+  "statusCode": 401,
+  "message": "Unauthorized",
+  "error": "Unauthorized"
+}
+```
+
+### Notes
+
+- The endpoint uses Passport's local strategy for authentication.
+- Upon successful authentication, a JWT token is returned which should be used for subsequent authenticated requests.
+- The token contains encoded user information and has an expiration time.
+
+### Example Usage
+
+#### JavaScript (Fetch API)
+
+```javascript
+async function signIn(email, password) {
+  try {
+    const response = await fetch("http://your-api-url/auth/signin", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log("Authentication successful:", data.token);
+    return data.token;
+  } catch (error) {
+    console.error("Authentication failed:", error);
+  }
+}
+
+// Usage
+signIn("user@example.com", "userpassword").then((token) => {
+  if (token) {
+    // Use the token for authenticated requests
+  }
+});
+```
+
+### Security Considerations
+
+- Always use HTTPS to prevent interception of credentials.
+- Implement rate limiting to prevent brute-force attacks.
+- Consider adding additional security measures like 2FA for sensitive operations.
+- Store the JWT securely (e.g., in HttpOnly cookies) to prevent XSS attacks.
+- Implement CSRF protection if using cookies for token storage.

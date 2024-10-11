@@ -1,33 +1,37 @@
 ---
-title: 'Introduction'
-description: 'Example section for showcasing API endpoints'
+title: "API Introduction"
 ---
 
-<Note>
-  If you're not looking to build API reference documentation, you can delete
-  this section by removing the api-reference folder.
-</Note>
+Welcome to the **Jethings API** documentation. This API enables you to interact with various features, including user management, email verification, and more.
 
-## Welcome
+### Base URL
 
-There are two ways to build API documentation: [OpenAPI](https://mintlify.com/docs/api-playground/openapi/setup) and [MDX components](https://mintlify.com/docs/api-playground/mdx/configuration). For the starter kit, we are using the following OpenAPI specification.
+The base URL for all API requests is:
 
-<Card
-  title="Plant Store Endpoints"
-  icon="leaf"
-  href="https://github.com/mintlify/starter/blob/main/api-reference/openapi.json"
->
-  View the OpenAPI specification file
-</Card>
-
-## Authentication
-
-All API endpoints are authenticated using Bearer tokens and picked up from the specification file.
-
-```json
-"security": [
-  {
-    "bearerAuth": []
-  }
-]
 ```
+https://api.jethings.com
+```
+
+### Important Notes
+
+- **Cold Start Delays**: Since the API is hosted on a serverless platform with a three-tier architecture, the first request after a period of inactivity might take up to **60 seconds** to process. This is due to the cold start time of the underlying infrastructure. Subsequent requests should be much faster.
+
+- **Error Reporting**: If you encounter any issues with the API, please open an issue on our GitHub repository. We actively monitor the issue tracker and will address reported problems as soon as possible.
+
+### Example
+
+For all API requests, make sure to use the following base URL:
+
+```shell
+GET https://api.jethings.com/your-endpoint
+```
+
+### Support
+
+If you have any questions, suggestions, or bugs to report, please open an issue on GitHub at:
+
+```
+https://github.com/jetAlphaStartup
+```
+
+Thank you for using the Jethings API!

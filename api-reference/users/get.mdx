@@ -1,4 +1,118 @@
 ---
-title: "get user"
-openapi: "GET /user"
+title: "user profile "
+openapi: "GET /users/profile"
 ---
+
+## Get User Profile
+
+Retrieve the profile information of the authenticated user.
+
+### Endpoint
+
+```
+GET /users/profile
+```
+
+### Authentication
+
+This endpoint requires authentication using a JWT token.
+
+#### Headers
+
+| Name          | Required | Description                                   |
+| ------------- | -------- | --------------------------------------------- |
+| Authorization | Yes      | Bearer token (JWT) obtained from /auth/signin |
+
+Example:
+
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### Request
+
+No request body is required for this endpoint.
+
+### Response
+
+#### Success Response
+
+**Code:** 200 OK
+
+**Content example:**
+
+```json
+{
+  "id": "user123",
+  "email": "user@example.com",
+  "fname": "John Doe",
+  "phone": 1234567890
+}
+```
+
+| Field | Type   | Description          |
+| ----- | ------ | -------------------- |
+| id    | string | User's unique ID     |
+| email | string | User's email address |
+| fname | string | User's full name     |
+| phone | number | User's phone number  |
+
+#### Error Response
+
+**Code:** 401 UNAUTHORIZED
+
+**Content example:**
+
+```json
+{
+  "statusCode": 401,
+  "message": "Unauthorized"
+}
+```
+
+### Notes
+
+- This endpoint is protected by JWT authentication (JwtAuthGuard).
+- The user's profile is retrieved based on the user ID encoded in the JWT token.
+- Ensure that the token is not expired.
+
+### Example Usage (JavaScript Fetch API)
+
+```javascript
+async function getUserProfile(token) {
+  try {
+    const response = await fetch("http://your-api-url/users/profile", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const profile = await response.json();
+    console.log("User profile:", profile);
+    return profile;
+  } catch (error) {
+    console.error("Failed to fetch user profile:", error);
+  }
+}
+
+// Usage (assuming you have the token from a previous signin)
+const token = "your-jwt-token-here";
+getUserProfile(token).then((profile) => {
+  if (profile) {
+    // Use the profile data as needed
+  }
+});
+```
+
+### Security Considerations
+
+- Always use HTTPS to prevent token interception.
+- Implement token expiration and refresh mechanisms.
+- Validate and sanitize any user input if you extend this endpoint to accept query parameters.
+- Implement proper error handling on the client side to manage token expiration or invalidation.
+- Ensure that the server only returns information that the authenticated user is authorized to access.

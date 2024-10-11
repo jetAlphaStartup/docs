@@ -5,7 +5,7 @@
     "dark": "/logo/dark.svg",
     "light": "/logo/light.svg"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "/images/favicon.ico",
   "colors": {
     "primary": "#066b3a",
     "light": "#07C983",
@@ -18,12 +18,12 @@
   "topbarLinks": [
     {
       "name": "Support",
-      "url": "mailto:mahdi.chahri55@gmail.com"
+      "url": "https://www.facebook.com/profile.php?id=100086303028890"
     }
   ],
   "topbarCtaButton": {
     "name": "company",
-    "url": "https://www.facebook.com/profile.php?id=100086303028890"
+    "url": "https://jethings.com"
   },
   "tabs": [
     {
@@ -35,7 +35,7 @@
     {
       "name": "Documentation",
       "icon": "book-open-cover",
-      "url": "https://jethings.mintlify.app/introduction"
+      "url": "https://www.facebook.com/profile.php?id=100086303028890"
     },
     {
       "name": "Community",
@@ -55,7 +55,11 @@
     },
     {
       "group": "Authentications",
-      "pages": ["api-reference/authentication/sign-email"]
+      "pages": [
+        "api-reference/authentication/sign-email",
+        "api-reference/authentication/request-verification-code",
+        "api-reference/authentication/verify-user"
+      ]
     },
     {
       "group": "Users",
