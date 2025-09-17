@@ -2,36 +2,47 @@
 title: "API Introduction"
 ---
 
-Welcome to the **Jethings API** documentation. This API enables you to interact with various features, including user management, email verification, and more.
+Welcome to the **Auth API** documentation. This API provides comprehensive authentication and user management features for frontend engineers integrating authentication flows.
 
 ### Base URL
 
-The base URL for all API requests is:
+The base URL for all API requests depends on your environment:
 
+**Production:**
 ```
-https://api.jethings.com
+https://api.example.com
 ```
+
+**Development:**
+```
+http://localhost:3000
+```
+
+### Content Type
+
+All requests must include the `Content-Type: application/json` header.
 
 ### Important Notes
 
-- **Cold Start Delays**: Since the API is hosted on a serverless platform with a three-tier architecture, the first request after a period of inactivity might take up to **60 seconds** to process. This is due to the cold start time of the underlying infrastructure. Subsequent requests should be much faster.
-
-- **Error Reporting**: If you encounter any issues with the API, please open an issue on our GitHub repository. We actively monitor the issue tracker and will address reported problems as soon as possible.
+- **JSON Responses**: All responses are returned in JSON format
+- **Error Handling**: Errors follow standard HTTP status codes with `{ message: string }` body
+- **Success Responses**: Unless noted, successful responses return `200 OK`
+- **Authentication**: Some endpoints require Bearer token authentication
 
 ### Example
 
-For all API requests, make sure to use the following base URL:
+For all API requests, make sure to use the appropriate base URL:
 
 ```shell
-GET https://api.jethings.com/your-endpoint
+# Development
+POST http://localhost:3000/auth/signup
+
+# Production  
+POST https://api.example.com/auth/signup
 ```
 
 ### Support
 
-If you have any questions, suggestions, or bugs to report, please open an issue on GitHub at:
+If you have any questions, suggestions, or bugs to report, please open an issue on our GitHub repository.
 
-```
-https://github.com/jetAlphaStartup
-```
-
-Thank you for using the Jethings API!
+Thank you for using the Auth API!

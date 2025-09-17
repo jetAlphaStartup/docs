@@ -1,0 +1,669 @@
+---
+title: "Auth API"
+description: "Complete authentication and user management API for frontend engineers"
+---
+
+## Auth API
+
+Audience: Frontend engineers integrating authentication flows.
+
+- Base URL: Use your deployed backend origin. Example: `https://api.example.com`
+- Prefix: All endpoints below are relative to the base as shown.
+- Content-Type: `application/json`
+- BaseUrl for dev is `http://localhost:3000`
+
+### Conventions
+- All responses are JSON.
+- Errors follow standard HTTP status codes with `{ message: string }` body.
+- Unless noted, successful responses are `200 OK`.
+
+---
+
+## Sign Up
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST "$API/auth/signup" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "firstName":"Jane",
+    "lastName":"Doe",
+    "email":"jane@example.com",
+    "phoneNumber":"+1234567890",
+    "password":"strongPass123",
+    "age":28,
+    "description":"Software developer passionate about building great products"
+  }'
+```
+
+```typescript TypeScript
+async function signUp(api: string, body: { 
+  firstName: string; 
+  lastName: string; 
+  email: string; 
+  phoneNumber: string;
+  password: string; 
+  age: number;
+  description?: string;
+}) {
+  const res = await fetch(`${api}/auth/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error((await res.json()).message || "Signup failed");
+  return res.json();
+}
+```
+
+</CodeGroup>
+
+**POST** `/auth/signup`
+
+### Request Body
+
+```json
+{
+  "firstName": "Jane",
+  "lastName": "Doe",
+  "email": "jane@example.com",
+  "phoneNumber": "+1234567890",
+  "password": "strongPass123",
+  "age": 28,
+  "description": "Software developer passionate about building great products"
+}
+```
+
+**Required fields:**
+- `firstName` (string): User's first name
+- `lastName` (string): User's last name  
+- `email` (string): Valid email address
+- `phoneNumber` (string): Valid phone number format
+- `password` (string): Minimum 6 characters
+- `age` (number): Integer between 1-120
+
+**Optional fields:**
+- `description` (string): Optional user description/bio
+
+### Success Response
+
+```json
+{
+  "message": "User created, check your email for verification code"
+}
+```
+
+### Error Responses
+
+- `409 Conflict` when email already exists: `{ "message": "Email already in use" }`
+- `409 Conflict` when phone number already exists: `{ "message": "Phone number already in use" }`
+- `400 Bad Request` for invalid payload or validation errors
+
+### Notes
+
+- A verification token is generated and emailed via Resend. The link opens your frontend at `FRONTEND_URL/verify-email?token=...`.
+- Both email and phone number must be unique across all users.
+
+---
+
+## Verify Email
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST "$API/auth/verify-email" \
+  -H "Content-Type: application/json" \
+  -d '{"otp":"123456"}'
+```
+
+```typescript TypeScript
+async function verifyEmail(api: string, otp: string) {
+  const res = await fetch(`${api}/auth/verify-email`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ otp }),
+  });
+  if (!res.ok) throw new Error((await res.json()).message || "Verification failed");
+  return res.json();
+}
+```
+
+</CodeGroup>
+
+**POST** `/auth/verify-email`
+
+### Request Body
+
+```json
+{ "otp": "123456" }
+```
+
+### Success Response
+
+```json
+{ "message": "Email verified successfully" }
+```
+
+### Error Responses
+
+- `400 Bad Request` when OTP is invalid/expired: `{ "message": "Invalid or expired OTP" }`
+- `400 Bad Request` when too many attempts: `{ "message": "Too many attempts. Please request a new OTP." }`
+
+### Notes
+
+- OTP is a 6-digit code sent to the user's email
+- OTP expires after 10 minutes
+- Maximum 3 attempts allowed per OTP
+- After successful verification, the OTP is automatically deleted
+
+---
+
+## Sign In
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST "$API/auth/signin" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"jane@example.com","password":"strongPass123"}'
+```
+
+```typescript TypeScript
+async function signIn(api: string, email: string, password: string) {
+  const res = await fetch(`${api}/auth/signin`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) throw new Error((await res.json()).message || "Sign-in failed");
+  return res.json();
+}
+```
+
+</CodeGroup>
+
+**POST** `/auth/signin`
+
+### Request Body
+
+```json
+{
+  "email": "jane@example.com",
+  "password": "strongPass123"
+}
+```
+
+### Success Response
+
+```json
+{
+  "message": "Signed in successfully",
+  "user": {
+    "id": "ck_123...",
+    "email": "jane@example.com",
+    "firstName": "Jane",
+    "lastName": "Doe",
+    "roles": ["user"]
+  },
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0",
+  "expiresIn": 900
+}
+```
+
+### Error Responses
+
+- `401 Unauthorized` when credentials are invalid: `{ "message": "Invalid credentials" }`
+- `401 Unauthorized` when email not verified: `{ "message": "Email not verified" }`
+
+### Notes
+
+- Returns JWT access token (15 minutes) and refresh token (7 days)
+- Store refresh token securely (httpOnly cookie recommended)
+- Use access token in Authorization header: `Bearer <accessToken>`
+
+---
+
+## Request Password Reset
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST "$API/auth/request-password-reset" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"jane@example.com"}'
+```
+
+```typescript TypeScript
+async function requestPasswordReset(api: string, email: string) {
+  const res = await fetch(`${api}/auth/request-password-reset`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  // Always returns success shape
+  return res.json();
+}
+```
+
+</CodeGroup>
+
+**POST** `/auth/request-password-reset`
+
+### Request Body
+
+```json
+{ "email": "jane@example.com" }
+```
+
+### Success Response
+
+```json
+{ "message": "If that email exists, a reset code was sent" }
+```
+
+### Behavior
+
+- Generates a 6-digit OTP (10 minutes expiry) and emails it to the user via Resend.
+
+---
+
+## Verify Password Reset
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST "$API/auth/verify-password-reset" \
+  -H "Content-Type: application/json" \
+  -d '{"otp":"123456","newPassword":"newStrongPass456"}'
+```
+
+```typescript TypeScript
+async function verifyPasswordReset(api: string, otp: string, newPassword: string) {
+  const res = await fetch(`${api}/auth/verify-password-reset`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ otp, newPassword }),
+  });
+  if (!res.ok) throw new Error((await res.json()).message || "Reset failed");
+  return res.json();
+}
+```
+
+</CodeGroup>
+
+**POST** `/auth/verify-password-reset`
+
+### Request Body
+
+```json
+{
+  "otp": "123456",
+  "newPassword": "newStrongPass456"
+}
+```
+
+### Success Response
+
+```json
+{ "message": "Password reset successful" }
+```
+
+### Error Responses
+
+- `400 Bad Request` when OTP is invalid/expired: `{ "message": "Invalid or expired OTP" }`
+- `400 Bad Request` when too many attempts: `{ "message": "Too many attempts. Please request a new OTP." }`
+
+### Notes
+
+- OTP is a 6-digit code sent to the user's email
+- OTP expires after 10 minutes
+- Maximum 3 attempts allowed per OTP
+- After successful reset, the OTP is automatically deleted
+
+---
+
+## Refresh Token
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST "$API/auth/refresh-token" \
+  -H "Content-Type: application/json" \
+  -d '{"refreshToken":"a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0"}'
+```
+
+```typescript TypeScript
+async function refreshToken(api: string, refreshToken: string) {
+  const res = await fetch(`${api}/auth/refresh-token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refreshToken }),
+  });
+  if (!res.ok) throw new Error((await res.json()).message || "Token refresh failed");
+  return res.json();
+}
+```
+
+</CodeGroup>
+
+**POST** `/auth/refresh-token`
+
+### Request Body
+
+```json
+{
+  "refreshToken": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0"
+}
+```
+
+### Success Response
+
+```json
+{
+  "message": "Tokens refreshed successfully",
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1",
+  "expiresIn": 900
+}
+```
+
+### Error Responses
+
+- `401 Unauthorized` when refresh token is invalid/expired: `{ "message": "Invalid or expired refresh token" }`
+
+### Notes
+
+- Generates new access token and refresh token
+- Old refresh token is automatically revoked
+- Use this endpoint when access token expires
+
+---
+
+## Revoke Token
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST "$API/auth/revoke-token" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -d '{"refreshToken":"a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0"}'
+```
+
+```dart Flutter
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+class AuthService {
+  static const String baseUrl = 'http://localhost:3000'; // or your deployed URL
+  
+  // Revoke specific refresh token
+  static Future<Map<String, dynamic>> revokeToken({
+    required String accessToken,
+    required String refreshToken,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/revoke-token'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessToken',
+        },
+        body: jsonEncode({
+          'refreshToken': refreshToken,
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to revoke token: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error revoking token: $e');
+    }
+  }
+}
+```
+
+</CodeGroup>
+
+**POST** `/auth/revoke-token`
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Request Body
+
+```json
+{
+  "refreshToken": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0"
+}
+```
+
+### Success Response
+
+```json
+{
+  "message": "Refresh token revoked successfully"
+}
+```
+
+### Notes
+
+- Revokes a specific refresh token
+- Useful for logging out from a specific device
+
+---
+
+## Revoke All Tokens
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST "$API/auth/revoke-all-tokens" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+```dart Flutter
+// Add this method to the AuthService class above
+static Future<Map<String, dynamic>> revokeAllTokens({
+  required String accessToken,
+}) async {
+  try {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/revoke-all-tokens'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $accessToken',
+      },
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to revoke all tokens: ${response.body}');
+    }
+  } catch (e) {
+    throw Exception('Error revoking all tokens: $e');
+  }
+}
+```
+
+</CodeGroup>
+
+**POST** `/auth/revoke-all-tokens`
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Success Response
+
+```json
+{
+  "message": "All refresh tokens revoked successfully"
+}
+```
+
+### Notes
+
+- Revokes all refresh tokens for the authenticated user
+- Useful for logging out from all devices
+
+---
+
+## Logout
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST "$API/auth/logout" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+```dart Flutter
+// Add this method to the AuthService class above
+static Future<Map<String, dynamic>> logout({
+  required String accessToken,
+}) async {
+  try {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/logout'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $accessToken',
+      },
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to logout: ${response.body}');
+    }
+  } catch (e) {
+    throw Exception('Error during logout: $e');
+  }
+}
+```
+
+</CodeGroup>
+
+**POST** `/auth/logout`
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Success Response
+
+```json
+{
+  "message": "All refresh tokens revoked successfully"
+}
+```
+
+### Notes
+
+- Alias for revoke-all-tokens
+- Logs out user from all devices
+
+---
+
+## Field Validation Rules
+
+**Signup Fields:**
+- `firstName`: Required, non-empty string
+- `lastName`: Required, non-empty string
+- `email`: Required, valid email format, must be unique
+- `phoneNumber`: Required, valid phone number format, must be unique
+- `password`: Required, minimum 6 characters
+- `age`: Required, integer between 1-120
+- `description`: Optional, string
+
+**Password rules:**
+- Minimum length: 6 characters. Consider enforcing stronger rules client-side as needed.
+
+---
+
+## Environment Configuration
+
+To configure the application, set these environment variables:
+
+```bash
+# Database
+DATABASE_URL=postgresql://username:password@localhost:5432/database_name
+
+# Frontend
+FRONTEND_URL=http://localhost:3000
+
+# Email (Resend)
+RESEND_API_KEY=your_resend_api_key_here
+RESEND_FROM=no-reply@rocketlaunch.cc
+
+# JWT Authentication
+JWT_SECRET=your_super_secret_jwt_key_at_least_32_characters_long
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
+
+# Environment
+NODE_ENV=development
+```
+
+---
+
+## JWT Authentication Flow
+
+### Complete Authentication Flow
+
+1. **Signup** → User creates account → OTP sent to email
+2. **Verify Email** → User enters OTP → Email verified
+3. **Sign In** → User provides credentials → Returns access + refresh tokens
+4. **API Calls** → Include access token in Authorization header
+5. **Token Refresh** → When access token expires, use refresh token
+6. **Logout** → Revoke refresh tokens to invalidate session
+
+### Token Management Best Practices
+
+- **Store refresh tokens securely** (httpOnly cookies recommended)
+- **Store access tokens in memory** (not localStorage for sensitive apps)
+- **Implement automatic token refresh** before expiry
+- **Handle token expiration gracefully** with refresh logic
+- **Revoke tokens on logout** for security
+
+### Frontend Integration Example
+
+```typescript
+// Store tokens after signin
+const { accessToken, refreshToken } = await signIn(email, password);
+localStorage.setItem('refreshToken', refreshToken); // Store securely
+// Keep accessToken in memory
+
+// API call with token
+const response = await fetch('/api/protected-route', {
+  headers: {
+    'Authorization': `Bearer ${accessToken}`,
+    'Content-Type': 'application/json'
+  }
+});
+
+// Handle token refresh
+if (response.status === 401) {
+  const newTokens = await refreshToken(refreshToken);
+  // Retry original request with new access token
+}
+```
+
+---
+
+## FAQ
+
+- **Why do we get a generic message for password reset requests?** To prevent email enumeration.
+- **How long do OTPs last?** Both email verification and password reset OTPs expire after 10 minutes.
+- **How many attempts are allowed?** Maximum 3 attempts per OTP before it becomes invalid.
+- **What happens after successful verification?** The OTP is automatically deleted from the database.
+- **How long do JWT tokens last?** Access tokens expire after 15 minutes, refresh tokens after 7 days.
+- **How do I refresh my access token?** Use the `/auth/refresh-token` endpoint with your refresh token.
+- **Can I revoke specific tokens?** Yes, use `/auth/revoke-token` to revoke a specific refresh token.
+- **How do I log out from all devices?** Use `/auth/logout` to revoke all refresh tokens for the user.
+- **What's in the JWT payload?** User ID, email, roles, and token type (access/refresh).
+- **How do I protect routes?** Use the `JwtAuthGuard` and include the access token in the Authorization header.
