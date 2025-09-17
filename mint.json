@@ -48,22 +48,13 @@
       "group": "Get Started",
       "pages": ["introduction"]
     },
-
     {
       "group": "API Documentation",
-      "pages": ["api-reference/introduction"]
-    },
-    {
-      "group": "Authentications",
       "pages": [
-        "api-reference/authentication/sign-email",
-        "api-reference/authentication/request-verification-code",
-        "api-reference/authentication/verify-user"
+        "api-reference/introduction",
+        "api-reference/auth-api",
+        "api-reference/flutter-integration"
       ]
-    },
-    {
-      "group": "Users",
-      "pages": ["api-reference/users/get", "api-reference/users/create"]
     }
   ],
   "footerSocials": {
