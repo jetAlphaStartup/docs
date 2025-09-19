@@ -2,47 +2,161 @@
 title: "API Introduction"
 ---
 
-Welcome to the **Auth API** documentation. This API provides comprehensive authentication and user management features for frontend engineers integrating authentication flows.
+# Jethings API Documentation
 
-### Base URL
+Welcome to the **Jethings API** - a comprehensive backend service providing authentication, user management, and administrative features for modern applications.
 
-The base URL for all API requests depends on your environment:
+## 🚀 Quick Start
 
-**Production:**
-```
-https://jethings-backend.fly.dev
-```
+Get up and running with our API in minutes:
 
-**Development:**
-```
-http://localhost:3000
-```
+```bash
+# Test the API health
+curl https://jethings-backend.fly.dev/health
 
-### Content Type
-
-All requests must include the `Content-Type: application/json` header.
-
-### Important Notes
-
-- **JSON Responses**: All responses are returned in JSON format
-- **Error Handling**: Errors follow standard HTTP status codes with `{ message: string }` body
-- **Success Responses**: Unless noted, successful responses return `200 OK`
-- **Authentication**: Some endpoints require Bearer token authentication
-
-### Example
-
-For all API requests, make sure to use the appropriate base URL:
-
-```shell
-# Development
-POST http://localhost:3000/auth/signup
-
-# Production  
-POST https://jethings-backend.fly.dev/auth/signup
+# Sign up a new user
+curl -X POST https://jethings-backend.fly.dev/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "firstName": "John",
+    "lastName": "Doe", 
+    "email": "john@example.com",
+    "phoneNumber": "+1234567890",
+    "password": "securePass123",
+    "age": 25
+  }'
 ```
 
-### Support
+## 🌐 Base URLs
 
-If you have any questions, suggestions, or bugs to report, please open an issue on our GitHub repository.
+Choose the appropriate base URL for your environment:
 
-Thank you for using the Auth API!
+<CardGroup cols={2}>
+  <Card title="Production" icon="rocket">
+    ```bash
+    https://jethings-backend.fly.dev
+    ```
+    Live API with full features
+  </Card>
+  <Card title="Development" icon="code">
+    ```bash
+    http://localhost:3000
+    ```
+    Local development server
+  </Card>
+</CardGroup>
+
+## 📋 API Features
+
+<AccordionGroup>
+  <Accordion title="Authentication & Security" icon="shield-check">
+    - JWT-based authentication with access & refresh tokens
+    - Email verification with OTP
+    - Password reset functionality
+    - Role-based access control (User, Admin, Super Admin)
+    - Secure token management and revocation
+  </Accordion>
+  
+  <Accordion title="User Management" icon="users">
+    - Complete user profile management
+    - Advanced user search and filtering
+    - User statistics and analytics
+    - Admin user management
+    - Account activation/deactivation
+  </Accordion>
+  
+  <Accordion title="Developer Experience" icon="code">
+    - Comprehensive TypeScript examples
+    - Flutter integration guides
+    - Interactive API documentation
+    - Error handling best practices
+    - Rate limiting and security
+  </Accordion>
+</AccordionGroup>
+
+## 🔧 Request Format
+
+All API requests follow these conventions:
+
+### Headers
+```http
+Content-Type: application/json
+Authorization: Bearer <access_token>  # Required for protected endpoints
+```
+
+### Response Format
+```json
+{
+  "message": "Success message",
+  "data": { /* response data */ },
+  "pagination": { /* pagination info */ }
+}
+```
+
+### Error Format
+```json
+{
+  "message": "Error description",
+  "statusCode": 400
+}
+```
+
+## 🔐 Authentication Flow
+
+<Steps>
+  <Step title="Sign Up">
+    Create a new user account with email verification
+  </Step>
+  <Step title="Verify Email">
+    Enter the 6-digit OTP sent to your email
+  </Step>
+  <Step title="Sign In">
+    Authenticate with email and password to get tokens
+  </Step>
+  <Step title="API Calls">
+    Use the access token in Authorization header
+  </Step>
+  <Step title="Token Refresh">
+    Refresh access token when it expires
+  </Step>
+</Steps>
+
+## 📚 API Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Authentication API" icon="key" href="/api-reference/auth-api">
+    Sign up, sign in, password reset, and token management
+  </Card>
+  <Card title="Users API" icon="users" href="/api-reference/users-api">
+    User management, search, statistics, and admin operations
+  </Card>
+</CardGroup>
+
+## 🛠️ SDKs & Integration
+
+- **Flutter**: Complete Flutter integration guide with working examples
+- **TypeScript/JavaScript**: Ready-to-use service classes
+- **cURL**: All endpoints documented with working examples
+
+## 🔒 Security
+
+- All sensitive endpoints require authentication
+- JWT tokens expire automatically (15 min access, 7 days refresh)
+- Rate limiting prevents abuse
+- Input validation on all endpoints
+- SQL injection protection with Drizzle ORM
+
+## 📞 Support
+
+<CardGroup cols={2}>
+  <Card title="GitHub Issues" icon="github" href="https://github.com/jetAlphaStartup">
+    Report bugs and request features
+  </Card>
+  <Card title="Community" icon="slack" href="https://app.slack.com/client/T07QLRRL4NP/C07QJ365WMT">
+    Join our developer community
+  </Card>
+</CardGroup>
+
+---
+
+Ready to get started? Check out our [Authentication API](/api-reference/auth-api) or [Users API](/api-reference/users-api) documentation!

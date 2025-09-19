@@ -1,0 +1,1168 @@
+---
+title: "Users API"
+description: "Complete user management and administrative operations"
+---
+
+# Users API
+
+The Users API provides comprehensive user management, search, statistics, and administrative features for managing user data and accounts.
+
+<Note>
+All endpoints use the base URL: `https://jethings-backend.fly.dev` (production) or `http://localhost:3000` (development)
+</Note>
+
+## 🔐 Authentication & Authorization
+
+<Warning>
+All Users API endpoints require authentication via Bearer token in the Authorization header.
+</Warning>
+
+**Required Headers:**
+```http
+Authorization: Bearer YOUR_ACCESS_TOKEN
+Content-Type: application/json
+```
+
+**Role Requirements:**
+- **User endpoints**: Any authenticated user
+- **Admin endpoints**: `admin` or `super_admin` role required
+- **Super Admin endpoints**: `super_admin` role required
+
+---
+
+## 👤 User Profile Management
+
+### Get Current User
+
+Retrieve the current authenticated user's profile information.
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://jethings-backend.fly.dev/users/me \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+```typescript TypeScript
+const response = await fetch('https://jethings-backend.fly.dev/users/me', {
+  headers: {
+    'Authorization': `Bearer ${accessToken}`,
+    'Content-Type': 'application/json'
+  }
+});
+
+const user = await response.json();
+```
+
+```dart Flutter
+final response = await http.get(
+  Uri.parse('https://jethings-backend.fly.dev/users/me'),
+  headers: {
+    'Authorization': 'Bearer $accessToken',
+    'Content-Type': 'application/json'
+  },
+);
+```
+</CodeGroup>
+
+**Success Response (200):**
+```json
+{
+  "id": "ck_123...",
+  "email": "jane@example.com",
+  "firstName": "Jane",
+  "lastName": "Doe",
+  "age": 28,
+  "phoneNumber": "+1234567890",
+  "avatarUrl": "https://example.com/avatar.jpg",
+  "description": "Software developer",
+  "roles": ["user"],
+  "isEmailVerified": true,
+  "isActive": true,
+  "lastActivity": "2024-01-15T10:30:00.000Z",
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-15T10:30:00.000Z"
+}
+```
+
+---
+
+### Update Current User
+
+Update the current user's profile information.
+
+<CodeGroup>
+```bash cURL
+curl -X PUT https://jethings-backend.fly.dev/users/me \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "firstName": "Jane",
+    "lastName": "Smith",
+    "age": 29,
+    "phoneNumber": "+1234567891",
+    "avatarUrl": "https://example.com/new-avatar.jpg",
+    "description": "Updated description"
+  }'
+```
+
+```typescript TypeScript
+const response = await fetch('https://jethings-backend.fly.dev/users/me', {
+  method: 'PUT',
+  headers: {
+    'Authorization': `Bearer ${accessToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    firstName: 'Jane',
+    lastName: 'Smith',
+    age: 29,
+    phoneNumber: '+1234567891',
+    avatarUrl: 'https://example.com/new-avatar.jpg',
+    description: 'Updated description'
+  })
+});
+
+const updatedUser = await response.json();
+```
+
+```dart Flutter
+final response = await http.put(
+  Uri.parse('https://jethings-backend.fly.dev/users/me'),
+  headers: {
+    'Authorization': 'Bearer $accessToken',
+    'Content-Type': 'application/json'
+  },
+  body: jsonEncode({
+    'firstName': 'Jane',
+    'lastName': 'Smith',
+    'age': 29,
+    'phoneNumber': '+1234567891',
+    'avatarUrl': 'https://example.com/new-avatar.jpg',
+    'description': 'Updated description'
+  }),
+);
+```
+</CodeGroup>
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `firstName` | string | ❌ | User's first name |
+| `lastName` | string | ❌ | User's last name |
+| `age` | number | ❌ | Integer between 1-120 |
+| `phoneNumber` | string | ❌ | Valid phone number (must be unique) |
+| `avatarUrl` | string | ❌ | URL to user's avatar image |
+| `description` | string | ❌ | User's bio/description |
+
+<Note>
+Users can only update their own profile fields. Admin-only fields (roles, isEmailVerified, isActive) are ignored.
+</Note>
+
+**Success Response (200):**
+```json
+{
+  "id": "ck_123...",
+  "email": "jane@example.com",
+  "firstName": "Jane",
+  "lastName": "Smith",
+  "age": 29,
+  "phoneNumber": "+1234567891",
+  "avatarUrl": "https://example.com/new-avatar.jpg",
+  "description": "Updated description",
+  "roles": ["user"],
+  "isEmailVerified": true,
+  "isActive": true,
+  "lastActivity": "2024-01-15T10:30:00.000Z",
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-15T11:00:00.000Z"
+}
+```
+
+**Error Responses:**
+- `409 Conflict`: Email already in use
+- `409 Conflict`: Phone number already in use
+
+---
+
+## 🔍 User Search & Management (Admin Only)
+
+### Get Users
+
+Retrieve a paginated list of users with advanced filtering and search capabilities.
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://jethings-backend.fly.dev/users?page=1&limit=10&search=jane&isActive=true" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+```typescript TypeScript
+const params = new URLSearchParams({
+  page: '1',
+  limit: '10',
+  search: 'jane',
+  isActive: 'true'
+});
+
+const response = await fetch(`https://jethings-backend.fly.dev/users?${params}`, {
+  headers: {
+    'Authorization': `Bearer ${adminToken}`,
+    'Content-Type': 'application/json'
+  }
+});
+
+const result = await response.json();
+```
+
+```dart Flutter
+final response = await http.get(
+  Uri.parse('https://jethings-backend.fly.dev/users').replace(queryParameters: {
+    'page': '1',
+    'limit': '10',
+    'search': 'jane',
+    'isActive': 'true'
+  }),
+  headers: {
+    'Authorization': 'Bearer $adminToken',
+    'Content-Type': 'application/json'
+  },
+);
+```
+</CodeGroup>
+
+**Query Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `search` | string | ❌ | Search across firstName, lastName, email, phoneNumber |
+| `firstName` | string | ❌ | Filter by first name (partial match) |
+| `lastName` | string | ❌ | Filter by last name (partial match) |
+| `email` | string | ❌ | Filter by email (partial match) |
+| `phoneNumber` | string | ❌ | Filter by phone number (partial match) |
+| `roles` | string[] | ❌ | Filter by roles (exact match) |
+| `isEmailVerified` | boolean | ❌ | Filter by email verification status |
+| `isActive` | boolean | ❌ | Filter by account status |
+| `page` | number | ❌ | Page number (default: 1) |
+| `limit` | number | ❌ | Items per page (default: 10, max: 100) |
+| `sortBy` | string | ❌ | Sort field (default: 'createdAt') |
+| `sortOrder` | string | ❌ | Sort order: 'asc' or 'desc' (default: 'desc') |
+
+**Success Response (200):**
+```json
+{
+  "users": [
+    {
+      "id": "ck_123...",
+      "email": "jane@example.com",
+      "firstName": "Jane",
+      "lastName": "Doe",
+      "age": 28,
+      "phoneNumber": "+1234567890",
+      "avatarUrl": "https://example.com/avatar.jpg",
+      "description": "Software developer",
+      "roles": ["user"],
+      "isEmailVerified": true,
+      "isActive": true,
+      "lastActivity": "2024-01-15T10:30:00.000Z",
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-15T10:30:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 25,
+    "totalPages": 3,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
+
+---
+
+### Get User Statistics
+
+Retrieve user statistics and analytics.
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://jethings-backend.fly.dev/users/stats \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+```typescript TypeScript
+const response = await fetch('https://jethings-backend.fly.dev/users/stats', {
+  headers: {
+    'Authorization': `Bearer ${adminToken}`,
+    'Content-Type': 'application/json'
+  }
+});
+
+const stats = await response.json();
+```
+
+```dart Flutter
+final response = await http.get(
+  Uri.parse('https://jethings-backend.fly.dev/users/stats'),
+  headers: {
+    'Authorization': 'Bearer $adminToken',
+    'Content-Type': 'application/json'
+  },
+);
+```
+</CodeGroup>
+
+**Success Response (200):**
+```json
+{
+  "totalUsers": 150,
+  "activeUsers": 142,
+  "verifiedUsers": 135,
+  "usersByRole": {
+    "user": 140,
+    "admin": 8,
+    "super_admin": 2
+  }
+}
+```
+
+---
+
+### Get User by ID
+
+Retrieve a specific user's information by their ID.
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://jethings-backend.fly.dev/users/ck_123... \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+```typescript TypeScript
+const response = await fetch(`https://jethings-backend.fly.dev/users/${userId}`, {
+  headers: {
+    'Authorization': `Bearer ${adminToken}`,
+    'Content-Type': 'application/json'
+  }
+});
+
+const user = await response.json();
+```
+
+```dart Flutter
+final response = await http.get(
+  Uri.parse('https://jethings-backend.fly.dev/users/$userId'),
+  headers: {
+    'Authorization': 'Bearer $adminToken',
+    'Content-Type': 'application/json'
+  },
+);
+```
+</CodeGroup>
+
+**Path Parameters:**
+- `id` (string): User ID (UUID format)
+
+**Success Response (200):**
+```json
+{
+  "id": "ck_123...",
+  "email": "jane@example.com",
+  "firstName": "Jane",
+  "lastName": "Doe",
+  "age": 28,
+  "phoneNumber": "+1234567890",
+  "avatarUrl": "https://example.com/avatar.jpg",
+  "description": "Software developer",
+  "roles": ["user"],
+  "isEmailVerified": true,
+  "isActive": true,
+  "lastActivity": "2024-01-15T10:30:00.000Z",
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-15T10:30:00.000Z"
+}
+```
+
+**Error Responses:**
+- `404 Not Found`: User not found
+
+---
+
+### Update User (Admin Only)
+
+Update any user's information with admin privileges.
+
+<CodeGroup>
+```bash cURL
+curl -X PUT https://jethings-backend.fly.dev/users/ck_123... \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "firstName": "Jane",
+    "lastName": "Smith",
+    "email": "jane.smith@example.com",
+    "phoneNumber": "+1234567891",
+    "age": 29,
+    "avatarUrl": "https://example.com/avatar.jpg",
+    "description": "Updated description",
+    "roles": ["admin"],
+    "isEmailVerified": true,
+    "isActive": true
+  }'
+```
+
+```typescript TypeScript
+const response = await fetch(`https://jethings-backend.fly.dev/users/${userId}`, {
+  method: 'PUT',
+  headers: {
+    'Authorization': `Bearer ${adminToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    firstName: 'Jane',
+    lastName: 'Smith',
+    email: 'jane.smith@example.com',
+    phoneNumber: '+1234567891',
+    age: 29,
+    avatarUrl: 'https://example.com/avatar.jpg',
+    description: 'Updated description',
+    roles: ['admin'],
+    isEmailVerified: true,
+    isActive: true
+  })
+});
+
+const updatedUser = await response.json();
+```
+
+```dart Flutter
+final response = await http.put(
+  Uri.parse('https://jethings-backend.fly.dev/users/$userId'),
+  headers: {
+    'Authorization': 'Bearer $adminToken',
+    'Content-Type': 'application/json'
+  },
+  body: jsonEncode({
+    'firstName': 'Jane',
+    'lastName': 'Smith',
+    'email': 'jane.smith@example.com',
+    'phoneNumber': '+1234567891',
+    'age': 29,
+    'avatarUrl': 'https://example.com/avatar.jpg',
+    'description': 'Updated description',
+    'roles': ['admin'],
+    'isEmailVerified': true,
+    'isActive': true
+  }),
+);
+```
+</CodeGroup>
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `firstName` | string | ❌ | User's first name |
+| `lastName` | string | ❌ | User's last name |
+| `email` | string | ❌ | Valid email address (must be unique) |
+| `phoneNumber` | string | ❌ | Valid phone number (must be unique) |
+| `age` | number | ❌ | Integer between 1-120 |
+| `avatarUrl` | string | ❌ | URL to user's avatar image |
+| `description` | string | ❌ | User's bio/description |
+| `roles` | string[] | ❌ | User roles (admin only) |
+| `isEmailVerified` | boolean | ❌ | Email verification status (admin only) |
+| `isActive` | boolean | ❌ | Account status (admin only) |
+
+**Success Response (200):**
+```json
+{
+  "id": "ck_123...",
+  "email": "jane.smith@example.com",
+  "firstName": "Jane",
+  "lastName": "Smith",
+  "age": 29,
+  "phoneNumber": "+1234567891",
+  "avatarUrl": "https://example.com/avatar.jpg",
+  "description": "Updated description",
+  "roles": ["admin"],
+  "isEmailVerified": true,
+  "isActive": true,
+  "lastActivity": "2024-01-15T10:30:00.000Z",
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-15T11:00:00.000Z"
+}
+```
+
+**Error Responses:**
+- `404 Not Found`: User not found
+- `409 Conflict`: Email already in use
+- `409 Conflict`: Phone number already in use
+
+---
+
+## 🔒 Account Management (Admin Only)
+
+### Deactivate User
+
+Deactivate a user account (soft delete).
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://jethings-backend.fly.dev/users/ck_123.../deactivate \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+```typescript TypeScript
+const response = await fetch(`https://jethings-backend.fly.dev/users/${userId}/deactivate`, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${adminToken}`,
+    'Content-Type': 'application/json'
+  }
+});
+
+const result = await response.json();
+```
+
+```dart Flutter
+final response = await http.post(
+  Uri.parse('https://jethings-backend.fly.dev/users/$userId/deactivate'),
+  headers: {
+    'Authorization': 'Bearer $adminToken',
+    'Content-Type': 'application/json'
+  },
+);
+```
+</CodeGroup>
+
+**Success Response (200):**
+```json
+{
+  "message": "User deactivated successfully"
+}
+```
+
+**Error Responses:**
+- `404 Not Found`: User not found
+
+---
+
+### Activate User
+
+Reactivate a previously deactivated user account.
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://jethings-backend.fly.dev/users/ck_123.../activate \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+```typescript TypeScript
+const response = await fetch(`https://jethings-backend.fly.dev/users/${userId}/activate`, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${adminToken}`,
+    'Content-Type': 'application/json'
+  }
+});
+
+const result = await response.json();
+```
+
+```dart Flutter
+final response = await http.post(
+  Uri.parse('https://jethings-backend.fly.dev/users/$userId/activate'),
+  headers: {
+    'Authorization': 'Bearer $adminToken',
+    'Content-Type': 'application/json'
+  },
+);
+```
+</CodeGroup>
+
+**Success Response (200):**
+```json
+{
+  "message": "User activated successfully"
+}
+```
+
+**Error Responses:**
+- `404 Not Found`: User not found
+
+---
+
+### Delete User
+
+Permanently delete a user and all associated data.
+
+<Warning>
+This action cannot be undone. All user data will be permanently deleted.
+</Warning>
+
+<CodeGroup>
+```bash cURL
+curl -X DELETE https://jethings-backend.fly.dev/users/ck_123... \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+```typescript TypeScript
+const response = await fetch(`https://jethings-backend.fly.dev/users/${userId}`, {
+  method: 'DELETE',
+  headers: {
+    'Authorization': `Bearer ${adminToken}`,
+    'Content-Type': 'application/json'
+  }
+});
+
+const result = await response.json();
+```
+
+```dart Flutter
+final response = await http.delete(
+  Uri.parse('https://jethings-backend.fly.dev/users/$userId'),
+  headers: {
+    'Authorization': 'Bearer $adminToken',
+    'Content-Type': 'application/json'
+  },
+);
+```
+</CodeGroup>
+
+**Success Response (200):**
+```json
+{
+  "message": "User deleted successfully"
+}
+```
+
+**Error Responses:**
+- `404 Not Found`: User not found
+
+---
+
+## 👑 Super Admin Management
+
+### Get All Admins
+
+Retrieve all admin users (admin and super_admin roles).
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://jethings-backend.fly.dev/users/admins \
+  -H "Authorization: Bearer YOUR_SUPER_ADMIN_TOKEN"
+```
+
+```typescript TypeScript
+const response = await fetch('https://jethings-backend.fly.dev/users/admins', {
+  headers: {
+    'Authorization': `Bearer ${superAdminToken}`,
+    'Content-Type': 'application/json'
+  }
+});
+
+const admins = await response.json();
+```
+
+```dart Flutter
+final response = await http.get(
+  Uri.parse('https://jethings-backend.fly.dev/users/admins'),
+  headers: {
+    'Authorization': 'Bearer $superAdminToken',
+    'Content-Type': 'application/json'
+  },
+);
+```
+</CodeGroup>
+
+**Success Response (200):**
+```json
+[
+  {
+    "id": "ck_123...",
+    "email": "admin@example.com",
+    "firstName": "John",
+    "lastName": "Admin",
+    "age": 35,
+    "phoneNumber": "+1234567890",
+    "avatarUrl": "https://example.com/avatar.jpg",
+    "description": "System administrator",
+    "roles": ["admin"],
+    "isEmailVerified": true,
+    "isActive": true,
+    "lastActivity": "2024-01-15T10:30:00.000Z",
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-15T10:30:00.000Z",
+    "isAdmin": true,
+    "isSuperAdmin": false
+  }
+]
+```
+
+---
+
+### Create Admin
+
+Create a new admin user account.
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://jethings-backend.fly.dev/users/admins \
+  -H "Authorization: Bearer YOUR_SUPER_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "firstName": "Jane",
+    "lastName": "Admin",
+    "email": "jane.admin@example.com",
+    "password": "securePassword123",
+    "phoneNumber": "+1234567891",
+    "age": 30,
+    "description": "New system administrator",
+    "roles": ["admin"]
+  }'
+```
+
+```typescript TypeScript
+const response = await fetch('https://jethings-backend.fly.dev/users/admins', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${superAdminToken}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    firstName: 'Jane',
+    lastName: 'Admin',
+    email: 'jane.admin@example.com',
+    password: 'securePassword123',
+    phoneNumber: '+1234567891',
+    age: 30,
+    description: 'New system administrator',
+    roles: ['admin']
+  })
+});
+
+const newAdmin = await response.json();
+```
+
+```dart Flutter
+final response = await http.post(
+  Uri.parse('https://jethings-backend.fly.dev/users/admins'),
+  headers: {
+    'Authorization': 'Bearer $superAdminToken',
+    'Content-Type': 'application/json'
+  },
+  body: jsonEncode({
+    'firstName': 'Jane',
+    'lastName': 'Admin',
+    'email': 'jane.admin@example.com',
+    'password': 'securePassword123',
+    'phoneNumber': '+1234567891',
+    'age': 30,
+    'description': 'New system administrator',
+    'roles': ['admin']
+  }),
+);
+```
+</CodeGroup>
+
+**Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `firstName` | string | ✅ | Admin's first name |
+| `lastName` | string | ✅ | Admin's last name |
+| `email` | string | ✅ | Valid email address (must be unique) |
+| `password` | string | ✅ | Minimum 6 characters |
+| `phoneNumber` | string | ✅ | Valid phone number (must be unique) |
+| `age` | number | ✅ | Integer between 1-120 |
+| `description` | string | ❌ | Optional description |
+| `roles` | string[] | ❌ | User roles (default: ["admin"]) |
+
+**Success Response (200):**
+```json
+{
+  "message": "Admin created successfully",
+  "admin": {
+    "id": "ck_456...",
+    "email": "jane.admin@example.com",
+    "firstName": "Jane",
+    "lastName": "Admin",
+    "age": 30,
+    "phoneNumber": "+1234567891",
+    "avatarUrl": null,
+    "description": "New system administrator",
+    "roles": ["admin"],
+    "isEmailVerified": true,
+    "isActive": true,
+    "lastActivity": null,
+    "createdAt": "2024-01-15T12:00:00.000Z",
+    "updatedAt": "2024-01-15T12:00:00.000Z",
+    "isAdmin": true,
+    "isSuperAdmin": false
+  }
+}
+```
+
+**Error Responses:**
+- `409 Conflict`: Email already in use
+- `409 Conflict`: Phone number already in use
+
+---
+
+### Delete Admin
+
+Delete an admin user account.
+
+<CodeGroup>
+```bash cURL
+curl -X DELETE https://jethings-backend.fly.dev/users/admins/ck_123... \
+  -H "Authorization: Bearer YOUR_SUPER_ADMIN_TOKEN"
+```
+
+```typescript TypeScript
+const response = await fetch(`https://jethings-backend.fly.dev/users/admins/${adminId}`, {
+  method: 'DELETE',
+  headers: {
+    'Authorization': `Bearer ${superAdminToken}`,
+    'Content-Type': 'application/json'
+  }
+});
+
+const result = await response.json();
+```
+
+```dart Flutter
+final response = await http.delete(
+  Uri.parse('https://jethings-backend.fly.dev/users/admins/$adminId'),
+  headers: {
+    'Authorization': 'Bearer $superAdminToken',
+    'Content-Type': 'application/json'
+  },
+);
+```
+</CodeGroup>
+
+**Success Response (200):**
+```json
+{
+  "message": "Admin deleted successfully"
+}
+```
+
+**Error Responses:**
+- `404 Not Found`: Admin not found
+- `400 Bad Request`: User is not an admin
+- `400 Bad Request`: Cannot delete super admin
+
+---
+
+### Block Admin
+
+Block an admin user account.
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://jethings-backend.fly.dev/users/admins/ck_123.../block \
+  -H "Authorization: Bearer YOUR_SUPER_ADMIN_TOKEN"
+```
+
+```typescript TypeScript
+const response = await fetch(`https://jethings-backend.fly.dev/users/admins/${adminId}/block`, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${superAdminToken}`,
+    'Content-Type': 'application/json'
+  }
+});
+
+const result = await response.json();
+```
+
+```dart Flutter
+final response = await http.post(
+  Uri.parse('https://jethings-backend.fly.dev/users/admins/$adminId/block'),
+  headers: {
+    'Authorization': 'Bearer $superAdminToken',
+    'Content-Type': 'application/json'
+  },
+);
+```
+</CodeGroup>
+
+**Success Response (200):**
+```json
+{
+  "message": "Admin blocked successfully"
+}
+```
+
+**Error Responses:**
+- `404 Not Found`: Admin not found
+- `400 Bad Request`: User is not an admin
+- `400 Bad Request`: Cannot block super admin
+
+---
+
+### Unblock Admin
+
+Unblock a previously blocked admin user account.
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://jethings-backend.fly.dev/users/admins/ck_123.../unblock \
+  -H "Authorization: Bearer YOUR_SUPER_ADMIN_TOKEN"
+```
+
+```typescript TypeScript
+const response = await fetch(`https://jethings-backend.fly.dev/users/admins/${adminId}/unblock`, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${superAdminToken}`,
+    'Content-Type': 'application/json'
+  }
+});
+
+const result = await response.json();
+```
+
+```dart Flutter
+final response = await http.post(
+  Uri.parse('https://jethings-backend.fly.dev/users/admins/$adminId/unblock'),
+  headers: {
+    'Authorization': 'Bearer $superAdminToken',
+    'Content-Type': 'application/json'
+  },
+);
+```
+</CodeGroup>
+
+**Success Response (200):**
+```json
+{
+  "message": "Admin unblocked successfully"
+}
+```
+
+**Error Responses:**
+- `404 Not Found`: Admin not found
+- `400 Bad Request`: User is not an admin
+
+---
+
+## 🔧 Error Handling
+
+### Common Error Codes
+
+| Status Code | Description | Common Causes |
+|-------------|-------------|---------------|
+| `400 Bad Request` | Invalid request data | Validation errors, malformed JSON |
+| `401 Unauthorized` | Authentication required | Missing/invalid token, expired token |
+| `403 Forbidden` | Insufficient permissions | Wrong role, not admin/super_admin |
+| `404 Not Found` | Resource not found | Invalid user ID, user doesn't exist |
+| `409 Conflict` | Resource conflict | Email/phone already exists |
+| `500 Internal Server Error` | Server error | Database issues, unexpected errors |
+
+### Error Response Format
+
+```json
+{
+  "message": "Error description",
+  "statusCode": 400
+}
+```
+
+### Handling Errors in Your Code
+
+<CodeGroup>
+```typescript TypeScript
+try {
+  const response = await fetch('https://jethings-backend.fly.dev/users', {
+    headers: {
+      'Authorization': `Bearer ${adminToken}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to fetch users');
+  }
+
+  const data = await response.json();
+  // Handle success
+} catch (error) {
+  console.error('Users API error:', error.message);
+  // Handle error
+}
+```
+
+```dart Flutter
+try {
+  final response = await http.get(
+    Uri.parse('https://jethings-backend.fly.dev/users'),
+    headers: {
+      'Authorization': 'Bearer $adminToken',
+      'Content-Type': 'application/json'
+    },
+  );
+
+  if (response.statusCode == 200) {
+    final data = jsonDecode(response.body);
+    // Handle success
+  } else {
+    final error = jsonDecode(response.body);
+    throw Exception(error['message'] ?? 'Failed to fetch users');
+  }
+} catch (e) {
+  print('Users API error: $e');
+  // Handle error
+}
+```
+</CodeGroup>
+
+---
+
+## 🚀 Frontend Integration Examples
+
+### TypeScript Service Class
+
+```typescript
+class UserService {
+  private baseUrl = 'https://jethings-backend.fly.dev';
+  private accessToken: string;
+
+  constructor(accessToken: string) {
+    this.accessToken = accessToken;
+  }
+
+  async getUsers(filters: any = {}) {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        if (Array.isArray(value)) {
+          value.forEach(v => params.append(`${key}[]`, v));
+        } else {
+          params.append(key, String(value));
+        }
+      }
+    });
+
+    const response = await fetch(`${this.baseUrl}/users?${params}`, {
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch users: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async updateUser(userId: string, data: any) {
+    const response = await fetch(`${this.baseUrl}/users/${userId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to update user: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async deleteUser(userId: string) {
+    const response = await fetch(`${this.baseUrl}/users/${userId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to delete user: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+}
+```
+
+### React Hook Example
+
+```typescript
+import { useState, useEffect } from 'react';
+
+export const useUsers = (filters: any = {}) => {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [pagination, setPagination] = useState(null);
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          if (Array.isArray(value)) {
+            value.forEach(v => params.append(`${key}[]`, v));
+          } else {
+            params.append(key, String(value));
+          }
+        }
+      });
+
+      const response = await fetch(`/api/users?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch users');
+      }
+
+      const data = await response.json();
+      setUsers(data.users);
+      setPagination(data.pagination);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, [filters]);
+
+  return { users, loading, error, pagination, refetch: fetchUsers };
+};
+```
+
+---
+
+## 🚀 Next Steps
+
+Now that you understand the Users API, explore the [Authentication API](/api-reference/auth-api) for authentication features, or check out our [Flutter Integration Guide](/api-reference/flutter-integration) for mobile development.
+
+<CardGroup cols={2}>
+  <Card title="Authentication API" icon="key" href="/api-reference/auth-api">
+    Sign up, sign in, and token management
+  </Card>
+  <Card title="Flutter Integration" icon="mobile" href="/api-reference/flutter-integration">
+    Complete Flutter implementation guide
+  </Card>
+</CardGroup>

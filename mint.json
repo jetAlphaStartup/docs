@@ -7,12 +7,12 @@
   },
   "favicon": "/images/eye.png",
   "colors": {
-    "primary": "#066b3a",
-    "light": "#07C983",
-    "dark": "#0D9373",
+    "primary": "#45ACAB",
+    "light": "#6BC5C4",
+    "dark": "#2E8B8A",
     "anchors": {
-      "from": "#0D9373",
-      "to": "#07C983"
+      "from": "#2E8B8A",
+      "to": "#6BC5C4"
     }
   },
   "topbarLinks": [
@@ -46,14 +46,16 @@
   "navigation": [
     {
       "group": "Get Started",
-      "pages": ["introduction"]
+      "pages": ["introduction", "api-reference/quick-start"]
     },
     {
       "group": "API Documentation",
       "pages": [
         "api-reference/introduction",
         "api-reference/auth-api",
-        "api-reference/flutter-integration"
+        "api-reference/users-api",
+        "api-reference/flutter-integration",
+        "api-reference/error-handling"
       ]
     }
   ],

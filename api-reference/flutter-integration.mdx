@@ -1,57 +1,73 @@
 ---
 title: "Flutter Integration Guide"
-description: "Complete Flutter implementation guide for Auth API"
+description: "Complete Flutter implementation guide for Jethings API"
 ---
 
-## Flutter Integration Guide
+# Flutter Integration Guide
 
-### Complete AuthService Implementation
+This comprehensive guide shows you how to integrate the Jethings API into your Flutter applications with working examples and best practices.
 
-Here's a comprehensive Flutter service class that handles all authentication endpoints:
+<Note>
+All examples use the production URL: `https://jethings-backend.fly.dev`
+</Note>
+
+## 🚀 Quick Start
+
+### 1. Add Dependencies
+
+Add these to your `pubspec.yaml`:
+
+```yaml
+dependencies:
+  http: ^1.1.0
+  shared_preferences: ^2.2.2
+  # Optional: for more secure token storage
+  flutter_secure_storage: ^9.0.0
+```
+
+### 2. Create API Service
+
+Create a comprehensive API service that handles both authentication and user management:
 
 ```dart
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class AuthService {
-  static const String baseUrl = 'http://localhost:3000'; // or your deployed URL
+class JethingsApiService {
+  static const String baseUrl = 'https://jethings-backend.fly.dev';
   static const String _accessTokenKey = 'access_token';
   static const String _refreshTokenKey = 'refresh_token';
   
-  // Get stored access token
+  // Token Management
   static Future<String?> getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_accessTokenKey);
   }
   
-  // Get stored refresh token
   static Future<String?> getRefreshToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_refreshTokenKey);
   }
   
-  // Store tokens securely
   static Future<void> setTokens(String accessToken, String refreshToken) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_accessTokenKey, accessToken);
     await prefs.setString(_refreshTokenKey, refreshToken);
   }
   
-  // Clear all stored tokens
   static Future<void> clearTokens() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_accessTokenKey);
     await prefs.remove(_refreshTokenKey);
   }
   
-  // Check if user is authenticated
   static Future<bool> isAuthenticated() async {
     final token = await getAccessToken();
     return token != null && token.isNotEmpty;
   }
   
-  // Make authenticated request
+  // Make authenticated request with automatic token refresh
   static Future<http.Response> authenticatedRequest(
     String method,
     String endpoint, {
@@ -68,28 +84,76 @@ class AuthService {
       'Authorization': 'Bearer $accessToken',
     };
     
+    http.Response response;
     switch (method.toUpperCase()) {
       case 'GET':
-        return await http.get(uri, headers: headers);
+        response = await http.get(uri, headers: headers);
+        break;
       case 'POST':
-        return await http.post(
+        response = await http.post(
           uri,
           headers: headers,
           body: body != null ? jsonEncode(body) : null,
         );
+        break;
       case 'PUT':
-        return await http.put(
+        response = await http.put(
           uri,
           headers: headers,
           body: body != null ? jsonEncode(body) : null,
         );
+        break;
       case 'DELETE':
-        return await http.delete(uri, headers: headers);
+        response = await http.delete(uri, headers: headers);
+        break;
       default:
         throw Exception('Unsupported HTTP method: $method');
     }
+    
+    // Handle token refresh if needed
+    if (response.statusCode == 401) {
+      final refreshed = await refreshAccessToken();
+      if (refreshed != null) {
+        // Retry the request with new token
+        final newToken = await getAccessToken();
+        headers['Authorization'] = 'Bearer $newToken';
+        
+        switch (method.toUpperCase()) {
+          case 'GET':
+            response = await http.get(uri, headers: headers);
+            break;
+          case 'POST':
+            response = await http.post(
+              uri,
+              headers: headers,
+              body: body != null ? jsonEncode(body) : null,
+            );
+            break;
+          case 'PUT':
+            response = await http.put(
+              uri,
+              headers: headers,
+              body: body != null ? jsonEncode(body) : null,
+            );
+            break;
+          case 'DELETE':
+            response = await http.delete(uri, headers: headers);
+            break;
+        }
+      }
+    }
+    
+    return response;
   }
-  
+}
+```
+
+## 🔐 Authentication API
+
+### Sign Up
+
+```dart
+class AuthService {
   // Sign up user
   static Future<Map<String, dynamic>> signUp({
     required String firstName,
@@ -102,7 +166,7 @@ class AuthService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/auth/signup'),
+        Uri.parse('${JethingsApiService.baseUrl}/auth/signup'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'firstName': firstName,
@@ -118,7 +182,8 @@ class AuthService {
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        throw Exception('Signup failed: ${response.body}');
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Signup failed');
       }
     } catch (e) {
       throw Exception('Error during signup: $e');
@@ -129,7 +194,7 @@ class AuthService {
   static Future<Map<String, dynamic>> verifyEmail(String otp) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/auth/verify-email'),
+        Uri.parse('${JethingsApiService.baseUrl}/auth/verify-email'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'otp': otp}),
       );
@@ -137,7 +202,8 @@ class AuthService {
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        throw Exception('Email verification failed: ${response.body}');
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Email verification failed');
       }
     } catch (e) {
       throw Exception('Error verifying email: $e');
@@ -148,20 +214,37 @@ class AuthService {
   static Future<Map<String, dynamic>> signIn(String email, String password) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/auth/signin'),
+        Uri.parse('${JethingsApiService.baseUrl}/auth/signin'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email, 'password': password}),
       );
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        await setTokens(data['accessToken'], data['refreshToken']);
+        await JethingsApiService.setTokens(data['accessToken'], data['refreshToken']);
         return data;
       } else {
-        throw Exception('Sign-in failed: ${response.body}');
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Sign-in failed');
       }
     } catch (e) {
       throw Exception('Error during sign-in: $e');
+    }
+  }
+  
+  // Get current user
+  static Future<Map<String, dynamic>> getCurrentUser() async {
+    try {
+      final response = await JethingsApiService.authenticatedRequest('GET', '/auth/me');
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Failed to get user data');
+      }
+    } catch (e) {
+      throw Exception('Error getting current user: $e');
     }
   }
   
@@ -169,7 +252,7 @@ class AuthService {
   static Future<Map<String, dynamic>> requestPasswordReset(String email) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/auth/request-password-reset'),
+        Uri.parse('${JethingsApiService.baseUrl}/auth/request-password-reset'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email}),
       );
@@ -184,7 +267,7 @@ class AuthService {
   static Future<Map<String, dynamic>> verifyPasswordReset(String otp, String newPassword) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/auth/verify-password-reset'),
+        Uri.parse('${JethingsApiService.baseUrl}/auth/verify-password-reset'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'otp': otp, 'newPassword': newPassword}),
       );
@@ -192,7 +275,8 @@ class AuthService {
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        throw Exception('Password reset failed: ${response.body}');
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Password reset failed');
       }
     } catch (e) {
       throw Exception('Error resetting password: $e');
@@ -202,18 +286,18 @@ class AuthService {
   // Refresh access token
   static Future<Map<String, dynamic>?> refreshAccessToken() async {
     try {
-      final refreshToken = await getRefreshToken();
+      final refreshToken = await JethingsApiService.getRefreshToken();
       if (refreshToken == null) return null;
       
       final response = await http.post(
-        Uri.parse('$baseUrl/auth/refresh-token'),
+        Uri.parse('${JethingsApiService.baseUrl}/auth/refresh-token'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'refreshToken': refreshToken}),
       );
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        await setTokens(data['accessToken'], data['refreshToken']);
+        await JethingsApiService.setTokens(data['accessToken'], data['refreshToken']);
         return data;
       }
       return null;
@@ -226,7 +310,7 @@ class AuthService {
   // Revoke specific refresh token
   static Future<Map<String, dynamic>> revokeToken(String refreshToken) async {
     try {
-      final response = await authenticatedRequest(
+      final response = await JethingsApiService.authenticatedRequest(
         'POST',
         '/auth/revoke-token',
         body: {'refreshToken': refreshToken},
@@ -235,7 +319,8 @@ class AuthService {
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        throw Exception('Failed to revoke token: ${response.body}');
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Failed to revoke token');
       }
     } catch (e) {
       throw Exception('Error revoking token: $e');
@@ -245,12 +330,13 @@ class AuthService {
   // Revoke all tokens for current user
   static Future<Map<String, dynamic>> revokeAllTokens() async {
     try {
-      final response = await authenticatedRequest('POST', '/auth/revoke-all-tokens');
+      final response = await JethingsApiService.authenticatedRequest('POST', '/auth/revoke-all-tokens');
       
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        throw Exception('Failed to revoke all tokens: ${response.body}');
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Failed to revoke all tokens');
       }
     } catch (e) {
       throw Exception('Error revoking all tokens: $e');
@@ -261,21 +347,338 @@ class AuthService {
   static Future<bool> logout() async {
     try {
       await revokeAllTokens();
-      await clearTokens();
+      await JethingsApiService.clearTokens();
       return true;
     } catch (e) {
       print('Logout error: $e');
       // Clear tokens even if API call fails
-      await clearTokens();
+      await JethingsApiService.clearTokens();
       return false;
     }
   }
 }
 ```
 
-### Usage Examples in Flutter Widgets
+## 👤 Users API
 
-#### Sign Up Screen
+### User Management Service
+
+```dart
+class UserService {
+  // Get current user profile
+  static Future<Map<String, dynamic>> getCurrentUser() async {
+    try {
+      final response = await JethingsApiService.authenticatedRequest('GET', '/users/me');
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Failed to get user data');
+      }
+    } catch (e) {
+      throw Exception('Error getting current user: $e');
+    }
+  }
+  
+  // Update current user profile
+  static Future<Map<String, dynamic>> updateCurrentUser(Map<String, dynamic> userData) async {
+    try {
+      final response = await JethingsApiService.authenticatedRequest(
+        'PUT',
+        '/users/me',
+        body: userData,
+      );
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Failed to update user');
+      }
+    } catch (e) {
+      throw Exception('Error updating user: $e');
+    }
+  }
+  
+  // Get users (Admin only)
+  static Future<Map<String, dynamic>> getUsers({
+    String? search,
+    String? firstName,
+    String? lastName,
+    String? email,
+    String? phoneNumber,
+    List<String>? roles,
+    bool? isEmailVerified,
+    bool? isActive,
+    int page = 1,
+    int limit = 10,
+    String sortBy = 'createdAt',
+    String sortOrder = 'desc',
+  }) async {
+    try {
+      final queryParams = <String, String>{
+        'page': page.toString(),
+        'limit': limit.toString(),
+        'sortBy': sortBy,
+        'sortOrder': sortOrder,
+      };
+      
+      if (search != null) queryParams['search'] = search;
+      if (firstName != null) queryParams['firstName'] = firstName;
+      if (lastName != null) queryParams['lastName'] = lastName;
+      if (email != null) queryParams['email'] = email;
+      if (phoneNumber != null) queryParams['phoneNumber'] = phoneNumber;
+      if (isEmailVerified != null) queryParams['isEmailVerified'] = isEmailVerified.toString();
+      if (isActive != null) queryParams['isActive'] = isActive.toString();
+      
+      final uri = Uri.parse('${JethingsApiService.baseUrl}/users').replace(
+        queryParameters: queryParams,
+      );
+      
+      if (roles != null) {
+        final rolesUri = uri.replace(
+          queryParameters: {
+            ...uri.queryParameters,
+            for (int i = 0; i < roles.length; i++) 'roles[$i]': roles[i],
+          },
+        );
+        final response = await JethingsApiService.authenticatedRequest('GET', '${rolesUri.path}?${rolesUri.query}');
+        
+        if (response.statusCode == 200) {
+          return jsonDecode(response.body);
+        } else {
+          final error = jsonDecode(response.body);
+          throw Exception(error['message'] ?? 'Failed to fetch users');
+        }
+      } else {
+        final response = await JethingsApiService.authenticatedRequest('GET', '${uri.path}?${uri.query}');
+        
+        if (response.statusCode == 200) {
+          return jsonDecode(response.body);
+        } else {
+          final error = jsonDecode(response.body);
+          throw Exception(error['message'] ?? 'Failed to fetch users');
+        }
+      }
+    } catch (e) {
+      throw Exception('Error fetching users: $e');
+    }
+  }
+  
+  // Get user statistics (Admin only)
+  static Future<Map<String, dynamic>> getUserStats() async {
+    try {
+      final response = await JethingsApiService.authenticatedRequest('GET', '/users/stats');
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Failed to get user statistics');
+      }
+    } catch (e) {
+      throw Exception('Error getting user statistics: $e');
+    }
+  }
+  
+  // Get user by ID (Admin only)
+  static Future<Map<String, dynamic>> getUserById(String userId) async {
+    try {
+      final response = await JethingsApiService.authenticatedRequest('GET', '/users/$userId');
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Failed to get user');
+      }
+    } catch (e) {
+      throw Exception('Error getting user: $e');
+    }
+  }
+  
+  // Update user (Admin only)
+  static Future<Map<String, dynamic>> updateUser(String userId, Map<String, dynamic> userData) async {
+    try {
+      final response = await JethingsApiService.authenticatedRequest(
+        'PUT',
+        '/users/$userId',
+        body: userData,
+      );
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Failed to update user');
+      }
+    } catch (e) {
+      throw Exception('Error updating user: $e');
+    }
+  }
+  
+  // Deactivate user (Admin only)
+  static Future<Map<String, dynamic>> deactivateUser(String userId) async {
+    try {
+      final response = await JethingsApiService.authenticatedRequest('POST', '/users/$userId/deactivate');
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Failed to deactivate user');
+      }
+    } catch (e) {
+      throw Exception('Error deactivating user: $e');
+    }
+  }
+  
+  // Activate user (Admin only)
+  static Future<Map<String, dynamic>> activateUser(String userId) async {
+    try {
+      final response = await JethingsApiService.authenticatedRequest('POST', '/users/$userId/activate');
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Failed to activate user');
+      }
+    } catch (e) {
+      throw Exception('Error activating user: $e');
+    }
+  }
+  
+  // Delete user (Admin only)
+  static Future<Map<String, dynamic>> deleteUser(String userId) async {
+    try {
+      final response = await JethingsApiService.authenticatedRequest('DELETE', '/users/$userId');
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Failed to delete user');
+      }
+    } catch (e) {
+      throw Exception('Error deleting user: $e');
+    }
+  }
+}
+```
+
+### Admin Management Service (Super Admin Only)
+
+```dart
+class AdminService {
+  // Get all admins
+  static Future<List<dynamic>> getAllAdmins() async {
+    try {
+      final response = await JethingsApiService.authenticatedRequest('GET', '/users/admins');
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Failed to get admins');
+      }
+    } catch (e) {
+      throw Exception('Error getting admins: $e');
+    }
+  }
+  
+  // Create admin
+  static Future<Map<String, dynamic>> createAdmin({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String password,
+    required String phoneNumber,
+    required int age,
+    String? description,
+    List<String>? roles,
+  }) async {
+    try {
+      final response = await JethingsApiService.authenticatedRequest(
+        'POST',
+        '/users/admins',
+        body: {
+          'firstName': firstName,
+          'lastName': lastName,
+          'email': email,
+          'password': password,
+          'phoneNumber': phoneNumber,
+          'age': age,
+          if (description != null) 'description': description,
+          'roles': roles ?? ['admin'],
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Failed to create admin');
+      }
+    } catch (e) {
+      throw Exception('Error creating admin: $e');
+    }
+  }
+  
+  // Delete admin
+  static Future<Map<String, dynamic>> deleteAdmin(String adminId) async {
+    try {
+      final response = await JethingsApiService.authenticatedRequest('DELETE', '/users/admins/$adminId');
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Failed to delete admin');
+      }
+    } catch (e) {
+      throw Exception('Error deleting admin: $e');
+    }
+  }
+  
+  // Block admin
+  static Future<Map<String, dynamic>> blockAdmin(String adminId) async {
+    try {
+      final response = await JethingsApiService.authenticatedRequest('POST', '/users/admins/$adminId/block');
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Failed to block admin');
+      }
+    } catch (e) {
+      throw Exception('Error blocking admin: $e');
+    }
+  }
+  
+  // Unblock admin
+  static Future<Map<String, dynamic>> unblockAdmin(String adminId) async {
+    try {
+      final response = await JethingsApiService.authenticatedRequest('POST', '/users/admins/$adminId/unblock');
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Failed to unblock admin');
+      }
+    } catch (e) {
+      throw Exception('Error unblocking admin: $e');
+    }
+  }
+}
+```
+
+## 🎨 UI Implementation Examples
+
+### Sign Up Screen
 
 ```dart
 import 'package:flutter/material.dart';
@@ -338,59 +741,61 @@ class _SignUpScreenState extends State<SignUpScreen> {
         padding: EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _firstNameController,
-                decoration: InputDecoration(labelText: 'First Name'),
-                validator: (value) => value?.isEmpty == true ? 'Required' : null,
-              ),
-              TextFormField(
-                controller: _lastNameController,
-                decoration: InputDecoration(labelText: 'Last Name'),
-                validator: (value) => value?.isEmpty == true ? 'Required' : null,
-              ),
-              TextFormField(
-                controller: _emailController,
-                decoration: InputDecoration(labelText: 'Email'),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) => value?.isEmpty == true ? 'Required' : null,
-              ),
-              TextFormField(
-                controller: _phoneController,
-                decoration: InputDecoration(labelText: 'Phone Number'),
-                keyboardType: TextInputType.phone,
-                validator: (value) => value?.isEmpty == true ? 'Required' : null,
-              ),
-              TextFormField(
-                controller: _passwordController,
-                decoration: InputDecoration(labelText: 'Password'),
-                obscureText: true,
-                validator: (value) => value?.length < 6 ? 'Minimum 6 characters' : null,
-              ),
-              TextFormField(
-                controller: _ageController,
-                decoration: InputDecoration(labelText: 'Age'),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  final age = int.tryParse(value ?? '');
-                  if (age == null || age < 1 || age > 120) {
-                    return 'Age must be between 1-120';
-                  }
-                  return null;
-                },
-              ),
-              TextFormField(
-                controller: _descriptionController,
-                decoration: InputDecoration(labelText: 'Description (Optional)'),
-                maxLines: 3,
-              ),
-              SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _signUp,
-                child: _isLoading ? CircularProgressIndicator() : Text('Sign Up'),
-              ),
-            ],
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                TextFormField(
+                  controller: _firstNameController,
+                  decoration: InputDecoration(labelText: 'First Name'),
+                  validator: (value) => value?.isEmpty == true ? 'Required' : null,
+                ),
+                TextFormField(
+                  controller: _lastNameController,
+                  decoration: InputDecoration(labelText: 'Last Name'),
+                  validator: (value) => value?.isEmpty == true ? 'Required' : null,
+                ),
+                TextFormField(
+                  controller: _emailController,
+                  decoration: InputDecoration(labelText: 'Email'),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) => value?.isEmpty == true ? 'Required' : null,
+                ),
+                TextFormField(
+                  controller: _phoneController,
+                  decoration: InputDecoration(labelText: 'Phone Number'),
+                  keyboardType: TextInputType.phone,
+                  validator: (value) => value?.isEmpty == true ? 'Required' : null,
+                ),
+                TextFormField(
+                  controller: _passwordController,
+                  decoration: InputDecoration(labelText: 'Password'),
+                  obscureText: true,
+                  validator: (value) => value?.length < 6 ? 'Minimum 6 characters' : null,
+                ),
+                TextFormField(
+                  controller: _ageController,
+                  decoration: InputDecoration(labelText: 'Age'),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    final age = int.tryParse(value ?? '');
+                    if (age == null || age < 1 || age > 120) {
+                      return 'Age must be between 1-120';
+                    }
+                    return null;
+                  },
+                ),
+                TextFormField(
+                  controller: _descriptionController,
+                  decoration: InputDecoration(labelText: 'Description (Optional)'),
+                  maxLines: 3,
+                ),
+                SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _signUp,
+                  child: _isLoading ? CircularProgressIndicator() : Text('Sign Up'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -399,88 +804,202 @@ class _SignUpScreenState extends State<SignUpScreen> {
 }
 ```
 
-#### Sign In Screen
+### User Management Screen (Admin)
 
 ```dart
-class SignInScreen extends StatefulWidget {
+class UserManagementScreen extends StatefulWidget {
   @override
-  _SignInScreenState createState() => _SignInScreenState();
+  _UserManagementScreenState createState() => _UserManagementScreenState();
 }
 
-class _SignInScreenState extends State<SignInScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+class _UserManagementScreenState extends State<UserManagementScreen> {
+  List<dynamic> users = [];
+  bool isLoading = false;
+  int currentPage = 1;
+  int totalPages = 1;
+  String searchQuery = '';
   
-  bool _isLoading = false;
+  @override
+  void initState() {
+    super.initState();
+    _loadUsers();
+  }
   
-  Future<void> _signIn() async {
-    if (!_formKey.currentState!.validate()) return;
-    
-    setState(() => _isLoading = true);
+  Future<void> _loadUsers() async {
+    setState(() => isLoading = true);
     
     try {
-      final result = await AuthService.signIn(
-        _emailController.text,
-        _passwordController.text,
+      final result = await UserService.getUsers(
+        search: searchQuery.isNotEmpty ? searchQuery : null,
+        page: currentPage,
+        limit: 10,
       );
       
+      setState(() {
+        users = result['users'];
+        totalPages = result['pagination']['totalPages'];
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() => isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Welcome back, ${result['user']['firstName']}!')),
+        SnackBar(content: Text('Failed to load users: $e')),
       );
-      
-      // Navigate to main app
-      Navigator.pushReplacementNamed(context, '/home');
+    }
+  }
+  
+  Future<void> _deleteUser(String userId) async {
+    try {
+      await UserService.deleteUser(userId);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('User deleted successfully')),
+      );
+      _loadUsers(); // Refresh the list
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Sign in failed: $e')),
+        SnackBar(content: Text('Failed to delete user: $e')),
       );
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
   
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Sign In')),
-      body: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _emailController,
-                decoration: InputDecoration(labelText: 'Email'),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) => value?.isEmpty == true ? 'Required' : null,
-              ),
-              TextFormField(
-                controller: _passwordController,
-                decoration: InputDecoration(labelText: 'Password'),
-                obscureText: true,
-                validator: (value) => value?.isEmpty == true ? 'Required' : null,
-              ),
-              SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _signIn,
-                child: _isLoading ? CircularProgressIndicator() : Text('Sign In'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pushNamed(context, '/forgot-password'),
-                child: Text('Forgot Password?'),
-              ),
-            ],
+      appBar: AppBar(
+        title: Text('User Management'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: _loadUsers,
           ),
-        ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.all(16.0),
+            child: TextField(
+              decoration: InputDecoration(
+                labelText: 'Search users',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                setState(() => searchQuery = value);
+              },
+              onSubmitted: (_) => _loadUsers(),
+            ),
+          ),
+          Expanded(
+            child: isLoading
+                ? Center(child: CircularProgressIndicator())
+                : ListView.builder(
+                    itemCount: users.length,
+                    itemBuilder: (context, index) {
+                      final user = users[index];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage: user['avatarUrl'] != null
+                              ? NetworkImage(user['avatarUrl'])
+                              : null,
+                          child: user['avatarUrl'] == null
+                              ? Text(user['firstName'][0])
+                              : null,
+                        ),
+                        title: Text('${user['firstName']} ${user['lastName']}'),
+                        subtitle: Text(user['email']),
+                        trailing: PopupMenuButton(
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              value: 'view',
+                              child: Text('View Details'),
+                            ),
+                            PopupMenuItem(
+                              value: 'edit',
+                              child: Text('Edit'),
+                            ),
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Text('Delete'),
+                            ),
+                          ],
+                          onSelected: (value) {
+                            switch (value) {
+                              case 'view':
+                                // Navigate to user details
+                                break;
+                              case 'edit':
+                                // Navigate to edit user
+                                break;
+                              case 'delete':
+                                _showDeleteDialog(user['id']);
+                                break;
+                            }
+                          },
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          if (totalPages > 1)
+            Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.chevron_left),
+                    onPressed: currentPage > 1
+                        ? () {
+                            setState(() => currentPage--);
+                            _loadUsers();
+                          }
+                        : null,
+                  ),
+                  Text('Page $currentPage of $totalPages'),
+                  IconButton(
+                    icon: Icon(Icons.chevron_right),
+                    onPressed: currentPage < totalPages
+                        ? () {
+                            setState(() => currentPage++);
+                            _loadUsers();
+                          }
+                        : null,
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+  
+  void _showDeleteDialog(String userId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete User'),
+        content: Text('Are you sure you want to delete this user? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteUser(userId);
+            },
+            child: Text('Delete'),
+          ),
+        ],
       ),
     );
   }
 }
 ```
 
-#### Profile Screen with Logout Options
+### Profile Screen
 
 ```dart
 class ProfileScreen extends StatefulWidget {
@@ -489,70 +1008,158 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  bool _isLoading = false;
+  Map<String, dynamic>? user;
+  bool isLoading = true;
   
-  // Logout from current device only
-  Future<void> _logoutCurrentDevice() async {
-    setState(() => _isLoading = true);
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+  }
+  
+  Future<void> _loadUserProfile() async {
+    try {
+      final userData = await UserService.getCurrentUser();
+      setState(() {
+        user = userData;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() => isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load profile: $e')),
+      );
+    }
+  }
+  
+  Future<void> _updateProfile() async {
+    if (user == null) return;
     
     try {
-      final refreshToken = await AuthService.getRefreshToken();
-      if (refreshToken != null) {
-        await AuthService.revokeToken(refreshToken);
-      }
-      await AuthService.clearTokens();
+      final updatedUser = await UserService.updateCurrentUser({
+        'firstName': user!['firstName'],
+        'lastName': user!['lastName'],
+        'age': user!['age'],
+        'phoneNumber': user!['phoneNumber'],
+        'description': user!['description'],
+      });
       
-      // Navigate to login screen
+      setState(() => user = updatedUser);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Profile updated successfully')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update profile: $e')),
+      );
+    }
+  }
+  
+  Future<void> _logout() async {
+    try {
+      await AuthService.logout();
       Navigator.pushReplacementNamed(context, '/login');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Logout failed: $e')),
       );
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-  
-  // Logout from all devices
-  Future<void> _logoutAllDevices() async {
-    setState(() => _isLoading = true);
-    
-    try {
-      final success = await AuthService.logout();
-      if (success) {
-        Navigator.pushReplacementNamed(context, '/login');
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Logout failed')),
-        );
-      }
-    } finally {
-      setState(() => _isLoading = false);
     }
   }
   
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: Text('Profile')),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    
+    if (user == null) {
+      return Scaffold(
+        appBar: AppBar(title: Text('Profile')),
+        body: Center(child: Text('Failed to load profile')),
+      );
+    }
+    
     return Scaffold(
-      appBar: AppBar(title: Text('Profile')),
-      body: Padding(
+      appBar: AppBar(
+        title: Text('Profile'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.logout),
+            onPressed: _logout,
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
         padding: EdgeInsets.all(16.0),
         child: Column(
           children: [
-            ElevatedButton(
-              onPressed: _isLoading ? null : _logoutCurrentDevice,
-              child: Text('Logout from this device'),
+            CircleAvatar(
+              radius: 50,
+              backgroundImage: user!['avatarUrl'] != null
+                  ? NetworkImage(user!['avatarUrl'])
+                  : null,
+              child: user!['avatarUrl'] == null
+                  ? Text(
+                      '${user!['firstName'][0]}${user!['lastName'][0]}',
+                      style: TextStyle(fontSize: 24),
+                    )
+                  : null,
             ),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _logoutAllDevices,
-              child: Text('Logout from all devices'),
+            SizedBox(height: 20),
+            Text(
+              '${user!['firstName']} ${user!['lastName']}',
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
-            if (_isLoading)
-              Padding(
+            Text(
+              user!['email'],
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            SizedBox(height: 20),
+            Card(
+              child: Padding(
                 padding: EdgeInsets.all(16.0),
-                child: CircularProgressIndicator(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Profile Information', style: Theme.of(context).textTheme.titleMedium),
+                    SizedBox(height: 10),
+                    ListTile(
+                      leading: Icon(Icons.phone),
+                      title: Text('Phone'),
+                      subtitle: Text(user!['phoneNumber'] ?? 'Not provided'),
+                    ),
+                    ListTile(
+                      leading: Icon(Icons.cake),
+                      title: Text('Age'),
+                      subtitle: Text(user!['age']?.toString() ?? 'Not provided'),
+                    ),
+                    ListTile(
+                      leading: Icon(Icons.description),
+                      title: Text('Description'),
+                      subtitle: Text(user!['description'] ?? 'Not provided'),
+                    ),
+                    ListTile(
+                      leading: Icon(Icons.verified),
+                      title: Text('Email Verified'),
+                      subtitle: Text(user!['isEmailVerified'] ? 'Yes' : 'No'),
+                    ),
+                    ListTile(
+                      leading: Icon(Icons.person),
+                      title: Text('Status'),
+                      subtitle: Text(user!['isActive'] ? 'Active' : 'Inactive'),
+                    ),
+                  ],
+                ),
               ),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _updateProfile,
+              child: Text('Update Profile'),
+            ),
           ],
         ),
       ),
@@ -561,47 +1168,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
 }
 ```
 
-### Dependencies
+## 🔒 Secure Token Storage (Optional)
 
-Add these to your `pubspec.yaml`:
-
-```yaml
-dependencies:
-  http: ^1.1.0
-  shared_preferences: ^2.2.2
-  # Optional: for more secure token storage
-  flutter_secure_storage: ^9.0.0
-```
-
-### Secure Token Storage (Optional)
-
-For more sensitive applications, consider using `flutter_secure_storage`:
+For more sensitive applications, use `flutter_secure_storage`:
 
 ```dart
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-class SecureAuthService {
+class SecureTokenStorage {
   static const _storage = FlutterSecureStorage();
   static const String _accessTokenKey = 'access_token';
   static const String _refreshTokenKey = 'refresh_token';
   
-  // Store tokens securely
   static Future<void> setTokens(String accessToken, String refreshToken) async {
     await _storage.write(key: _accessTokenKey, value: accessToken);
     await _storage.write(key: _refreshTokenKey, value: refreshToken);
   }
   
-  // Get stored access token
   static Future<String?> getAccessToken() async {
     return await _storage.read(key: _accessTokenKey);
   }
   
-  // Get stored refresh token
   static Future<String?> getRefreshToken() async {
     return await _storage.read(key: _refreshTokenKey);
   }
   
-  // Clear all stored tokens
   static Future<void> clearTokens() async {
     await _storage.delete(key: _accessTokenKey);
     await _storage.delete(key: _refreshTokenKey);
@@ -609,35 +1200,83 @@ class SecureAuthService {
 }
 ```
 
-### Error Handling
+## 🚀 Best Practices
 
-The AuthService includes comprehensive error handling. All methods throw exceptions with descriptive messages that can be displayed to users. Make sure to wrap API calls in try-catch blocks and provide appropriate user feedback.
+### 1. Error Handling
 
-### Token Refresh Strategy
-
-Implement automatic token refresh in your app:
+Always wrap API calls in try-catch blocks and provide meaningful error messages to users:
 
 ```dart
-class TokenRefreshInterceptor {
-  static Future<http.Response> makeRequestWithRefresh(
-    Future<http.Response> Function() request,
-  ) async {
-    try {
-      return await request();
-    } catch (e) {
-      // If request fails with 401, try to refresh token
-      if (e.toString().contains('401')) {
-        final refreshed = await AuthService.refreshAccessToken();
-        if (refreshed != null) {
-          // Retry the original request
-          return await request();
-        } else {
-          // Refresh failed, redirect to login
-          throw Exception('Session expired. Please sign in again.');
-        }
-      }
-      rethrow;
+try {
+  final result = await AuthService.signIn(email, password);
+  // Handle success
+} catch (e) {
+  // Show user-friendly error message
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('Sign in failed: ${e.toString()}')),
+  );
+}
+```
+
+### 2. Loading States
+
+Show loading indicators during API calls:
+
+```dart
+bool isLoading = false;
+
+Future<void> _performAction() async {
+  setState(() => isLoading = true);
+  try {
+    // API call
+  } finally {
+    setState(() => isLoading = false);
+  }
+}
+```
+
+### 3. Token Refresh Strategy
+
+The `JethingsApiService.authenticatedRequest` method automatically handles token refresh. If a request returns 401, it will attempt to refresh the token and retry the request.
+
+### 4. Offline Handling
+
+Consider implementing offline support:
+
+```dart
+Future<void> _loadData() async {
+  try {
+    // Try to load from API
+    final data = await UserService.getUsers();
+    // Cache data locally
+    await _cacheData(data);
+  } catch (e) {
+    // Load from cache if API fails
+    final cachedData = await _getCachedData();
+    if (cachedData != null) {
+      // Use cached data
+    } else {
+      // Show error
     }
   }
 }
 ```
+
+## 🎯 Next Steps
+
+Now that you have a complete Flutter integration guide, you can:
+
+1. **Customize the UI** to match your app's design
+2. **Add more features** like push notifications, offline support
+3. **Implement role-based UI** based on user permissions
+4. **Add analytics** to track user behavior
+5. **Test thoroughly** with different user scenarios
+
+<CardGroup cols={2}>
+  <Card title="Authentication API" icon="key" href="/api-reference/auth-api">
+    Complete authentication endpoints reference
+  </Card>
+  <Card title="Users API" icon="users" href="/api-reference/users-api">
+    User management and admin operations
+  </Card>
+</CardGroup>
