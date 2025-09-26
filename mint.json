@@ -7,12 +7,12 @@
   },
   "favicon": "/images/eye.png",
   "colors": {
-    "primary": "#45ACAB",
-    "light": "#6BC5C4",
-    "dark": "#2E8B8A",
+    "primary": "#000000",
+    "light": "#333333",
+    "dark": "#000000",
     "anchors": {
-      "from": "#2E8B8A",
-      "to": "#6BC5C4"
+      "from": "#000000",
+      "to": "#333333"
     }
   },
   "topbarLinks": [
@@ -39,8 +39,8 @@
     },
     {
       "name": "Community",
-      "icon": "slack",
-      "url": "https://app.slack.com/client/T07QLRRL4NP/C07QJ365WMT"
+      "icon": "message-circle",
+      "url": "https://mail.google.com/chat/u/0/#chat/home"
     }
   ],
   "navigation": [
