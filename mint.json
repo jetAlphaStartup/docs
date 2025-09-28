@@ -15,12 +15,7 @@
       "to": "#1D4ED8"
     }
   },
-  "topbarLinks": [
-    {
-      "name": "Support",
-      "url": "https://www.facebook.com/profile.php?id=100086303028890"
-    }
-  ],
+
   "topbarCtaButton": {
     "name": "company",
     "url": "https://jethings.com"
@@ -29,41 +24,21 @@
     {
       "name": "API Reference",
       "url": "api-reference"
-    },
-    {
-      "name": "Interactive API",
-      "url": "https://jethings-backend.fly.dev/api-docs"
     }
+   
   ],
-  "anchors": [
-    {
-      "name": "Documentation",
-      "icon": "book-open-cover",
-      "url": "https://www.facebook.com/profile.php?id=100086303028890"
-    },
-    {
-      "name": "Community",
-      "icon": "message-circle",
-      "url": "https://mail.google.com/chat/u/0/#chat/home"
-    }
-  ],
+  
   "navigation": [
-    {
-      "group": "Get Started",
-      "pages": ["introduction", "api-reference/quick-start"]
-    },
+    
     {
       "group": "API Documentation",
       "pages": [
-        "api-reference/introduction",
-        "api-reference/interactive-api",
-        "api-reference/swagger-ui",
+      
         "api-reference/auth-api",
         "api-reference/users-api",
         "api-reference/app-config-api",
-        "api-reference/stores-api",
-        "api-reference/flutter-integration",
-        "api-reference/error-handling"
+        "api-reference/stores-api"
+     
       ]
     }
   ],
