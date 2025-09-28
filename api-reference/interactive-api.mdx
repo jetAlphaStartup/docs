@@ -1,0 +1,127 @@
+# Interactive API Testing
+
+Test your API endpoints directly from the documentation.
+
+## Quick Test
+
+### Test Public Endpoint
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/app-config/public"
+```
+
+**Expected Response:**
+```json
+{
+  "minVersion": "1.0.0",
+  "currentVersion": "1.2.3",
+  "releaseNotes": "Bug fixes and performance improvements",
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-15T10:30:00.000Z"
+}
+```
+
+### Test Authentication Required Endpoints
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/stores/my" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+```
+
+**Expected Response:**
+```json
+{
+  "stores": [],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 0,
+    "totalPages": 0,
+    "hasNext": false,
+    "hasPrev": false
+  }
+}
+```
+
+### Create Store Example
+
+```bash
+curl -X POST "https://jethings-backend.fly.dev/stores" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -d '{
+    "name": "Test Store",
+    "description": "Testing API from docs",
+    "icon": "https://example.com/icon.png"
+  }'
+```
+
+**Expected Response:**
+```json
+{
+  "id": "ck_123...",
+  "userId": "ck_456...",
+  "name": "Test Store",
+  "description": "Testing API from docs",
+  "icon": "https://example.com/icon.png",
+  "status": "pending",
+  "isActive": true,
+  "createdAt": "2024-01-15T10:30:00.000Z",
+  "updatedAt": "2024-01-15T10:30:00.000Z",
+  "deletedAt": null
+}
+```
+
+### API Status
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/health"
+```
+
+**Expected Response:**
+```json
+{
+  "status": "ok",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+## Available Endpoints
+
+### Public Endpoints (No Authentication)
+- `GET /app-config/public` - Get app configuration
+- `GET /health` - Health check
+
+### Authentication Endpoints
+- `POST /auth/signup` - User registration
+- `POST /auth/signin` - User login
+- `POST /auth/verify-email` - Email verification
+- `POST /auth/request-password-reset` - Password reset request
+- `POST /auth/verify-password-reset` - Password reset verification
+- `POST /auth/refresh-token` - Refresh access token
+- `POST /auth/logout` - User logout
+
+### Store Management (Authentication Required)
+- `POST /stores` - Create store
+- `GET /stores/my` - Get user's stores
+- `GET /stores/:id` - Get store by ID
+- `PUT /stores/:id/user` - Update store (user)
+- `PUT /stores/:id` - Update store (admin)
+- `DELETE /stores/:id` - Delete store (admin)
+
+### App Configuration (Admin Only)
+- `GET /app-config` - Get all configurations
+- `POST /app-config` - Create configuration
+- `PUT /app-config/:id` - Update configuration
+- `DELETE /app-config/:id` - Delete configuration
+- `PUT /app-config/active` - Create/update active configuration
+
+## Getting Started
+
+1. **Get an Access Token**: Use the signin endpoint to get your access token
+2. **Test Public Endpoints**: Try the public endpoints without authentication
+3. **Test Authenticated Endpoints**: Use your token to test protected endpoints
+4. **Check Responses**: All responses will be displayed in the documentation
+
+## Base URL
+All endpoints use: `https://jethings-backend.fly.dev`

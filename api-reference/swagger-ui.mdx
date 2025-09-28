@@ -1,0 +1,236 @@
+# API Explorer
+
+Interactive API documentation with live testing capabilities.
+
+## Quick Test
+
+Test your API endpoints directly from the documentation:
+
+### Test Public Endpoint
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/app-config/public"
+```
+
+**Expected Response:**
+```json
+{
+  "minVersion": "1.0.0",
+  "currentVersion": "1.2.3",
+  "releaseNotes": "Bug fixes and performance improvements",
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-15T10:30:00.000Z"
+}
+```
+
+### Test Authentication
+
+```bash
+curl -X POST "https://jethings-backend.fly.dev/auth/signin" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "password": "yourpassword"
+  }'
+```
+
+**Expected Response:**
+```json
+{
+  "message": "Sign in successful",
+  "user": {
+    "id": "ck_123...",
+    "email": "test@example.com",
+    "firstName": "John",
+    "lastName": "Doe",
+    "roles": ["user"]
+  },
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expiresIn": 3600
+}
+```
+
+### Test Store Creation
+
+```bash
+curl -X POST "https://jethings-backend.fly.dev/stores" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -d '{
+    "name": "My Test Store",
+    "description": "Testing from documentation",
+    "icon": "https://example.com/icon.png"
+  }'
+```
+
+**Expected Response:**
+```json
+{
+  "id": "ck_123...",
+  "userId": "ck_456...",
+  "name": "My Test Store",
+  "description": "Testing from documentation",
+  "icon": "https://example.com/icon.png",
+  "status": "pending",
+  "isActive": true,
+  "createdAt": "2024-01-15T10:30:00.000Z",
+  "updatedAt": "2024-01-15T10:30:00.000Z",
+  "deletedAt": null
+}
+```
+
+## More API Examples
+
+### Test Store Retrieval
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/stores/my" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+```
+
+**Expected Response:**
+```json
+{
+  "stores": [
+    {
+      "id": "ck_123...",
+      "userId": "ck_456...",
+      "name": "My Store",
+      "description": "A great store",
+      "icon": "https://example.com/icon.png",
+      "status": "pending",
+      "isActive": true,
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "updatedAt": "2024-01-15T10:30:00.000Z",
+      "deletedAt": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 1,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrev": false
+  }
+}
+```
+
+### Test App Configuration (Admin)
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/app-config" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE"
+```
+
+**Expected Response:**
+```json
+[
+  {
+    "id": "ck_123...",
+    "minVersion": "1.0.0",
+    "currentVersion": "1.2.3",
+    "releaseNotes": "Latest version with new features",
+    "isActive": true,
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T10:30:00.000Z"
+  }
+]
+```
+
+### Test Store Update (User)
+
+```bash
+curl -X PUT "https://jethings-backend.fly.dev/stores/ck_123.../user" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -d '{
+    "name": "Updated Store Name",
+    "description": "Updated description"
+  }'
+```
+
+### Test Store Update (Admin)
+
+```bash
+curl -X PUT "https://jethings-backend.fly.dev/stores/ck_123..." \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN_HERE" \
+  -d '{
+    "name": "Updated Store Name",
+    "status": "accepted",
+    "isActive": true
+  }'
+```
+
+## External Swagger UI
+
+For a full interactive API explorer, you can use this external Swagger UI:
+
+[**Open Swagger UI in New Tab**](https://petstore.swagger.io/?url=https://raw.githubusercontent.com/your-username/your-repo/main/api-reference/openapi.json)
+
+*Note: Replace the URL with your actual OpenAPI spec URL when you deploy*
+
+## Available Endpoints
+
+### Authentication
+- **POST** `/auth/signup` - Create new user account
+- **POST** `/auth/signin` - User login
+- **POST** `/auth/verify-email` - Verify email with OTP
+- **POST** `/auth/request-password-reset` - Request password reset
+- **POST** `/auth/verify-password-reset` - Reset password with OTP
+- **POST** `/auth/refresh-token` - Refresh access token
+- **POST** `/auth/logout` - User logout
+
+### Store Management
+- **POST** `/stores` - Create new store
+- **GET** `/stores/my` - Get user's stores
+- **GET** `/stores/:id` - Get store by ID
+- **PUT** `/stores/:id/user` - Update store (user)
+- **PUT** `/stores/:id` - Update store (admin)
+- **DELETE** `/stores/:id` - Delete store (admin)
+
+### App Configuration
+- **GET** `/app-config/public` - Get public app config
+- **GET** `/app-config` - Get all configs (admin)
+- **POST** `/app-config` - Create config (admin)
+- **PUT** `/app-config/:id` - Update config (admin)
+- **DELETE** `/app-config/:id` - Delete config (admin)
+
+## Base URL
+All requests are made to: `https://jethings-backend.fly.dev`
+
+## Getting Started
+
+1. **Get an Access Token**: Use the signin endpoint to authenticate
+2. **Test Public Endpoints**: Try `/app-config/public` without authentication
+3. **Test Authenticated Endpoints**: Use your token for protected endpoints
+4. **Check Responses**: All responses will be displayed in the documentation
+
+## Alternative Testing Methods
+
+### Using Postman
+1. Import the OpenAPI spec: `api-reference/openapi.json`
+2. Set base URL to: `https://jethings-backend.fly.dev`
+3. Add Bearer token in Authorization header
+
+### Using curl
+Copy any of the curl examples above and replace `YOUR_TOKEN_HERE` with your actual access token.
+
+### Using JavaScript/Fetch
+```javascript
+// Test public endpoint
+fetch('https://jethings-backend.fly.dev/app-config/public')
+  .then(response => response.json())
+  .then(data => console.log(data));
+
+// Test authenticated endpoint
+fetch('https://jethings-backend.fly.dev/stores/my', {
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN_HERE'
+  }
+})
+.then(response => response.json())
+.then(data => console.log(data));
+```

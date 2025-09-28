@@ -7,12 +7,12 @@
   },
   "favicon": "/images/eye.png",
   "colors": {
-    "primary": "#000000",
-    "light": "#333333",
-    "dark": "#000000",
+    "primary": "#3B82F6",
+    "light": "#60A5FA",
+    "dark": "#1D4ED8",
     "anchors": {
-      "from": "#000000",
-      "to": "#333333"
+      "from": "#3B82F6",
+      "to": "#1D4ED8"
     }
   },
   "topbarLinks": [
@@ -29,6 +29,10 @@
     {
       "name": "API Reference",
       "url": "api-reference"
+    },
+    {
+      "name": "Interactive API",
+      "url": "https://jethings-backend.fly.dev/api-docs"
     }
   ],
   "anchors": [
@@ -52,8 +56,12 @@
       "group": "API Documentation",
       "pages": [
         "api-reference/introduction",
+        "api-reference/interactive-api",
+        "api-reference/swagger-ui",
         "api-reference/auth-api",
         "api-reference/users-api",
+        "api-reference/app-config-api",
+        "api-reference/stores-api",
         "api-reference/flutter-integration",
         "api-reference/error-handling"
       ]

@@ -1,0 +1,363 @@
+# App Configuration API
+
+Audience: Frontend engineers and administrators managing application configuration.
+
+- Base URL: `https://jethings-backend.fly.dev`
+- Content-Type: `application/json`
+
+### Conventions
+- All responses are JSON.
+- Errors follow standard HTTP status codes with `{ message: string }` body.
+- Unless noted, successful responses are `200 OK`.
+- Admin endpoints require `admin` or `super_admin` role.
+- Public endpoints require no authentication.
+
+---
+
+## Get App Configuration (Public)
+GET `/app-config/public`
+
+**Requires Authentication:** None (Public endpoint)
+
+### Success Response
+```json
+{
+  "minVersion": "1.0.0",
+  "currentVersion": "1.2.3",
+  "releaseNotes": "Bug fixes and performance improvements",
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-15T10:30:00.000Z"
+}
+```
+
+### No Active Config Response
+```json
+null
+```
+
+### Example Request
+```bash
+curl -X GET "https://jethings-backend.fly.dev/app-config/public"
+```
+
+<RequestExample>
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/app-config/public"
+```
+
+</RequestExample>
+
+---
+
+## Create App Configuration (Admin Only)
+POST `/app-config`
+
+**Requires Authentication:** Bearer token in Authorization header  
+**Requires Role:** Admin or Super Admin
+
+### Request Body
+```json
+{
+  "minVersion": "1.0.0",
+  "currentVersion": "1.2.3",
+  "releaseNotes": "Initial release with core features",
+  "isActive": true
+}
+```
+
+### Request Body Fields
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `minVersion` | string | Yes | Minimum supported app version |
+| `currentVersion` | string | Yes | Current app version |
+| `releaseNotes` | string | No | Release notes for the version |
+| `isActive` | boolean | No | Whether this config is active (default: true) |
+
+### Success Response
+```json
+{
+  "id": "ck_123...",
+  "minVersion": "1.0.0",
+  "currentVersion": "1.2.3",
+  "releaseNotes": "Initial release with core features",
+  "isActive": true,
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}
+```
+
+### Possible Errors
+- `409 Conflict`: `{ "message": "An active app config already exists. Please update the existing one or deactivate it first." }`
+- `400 Bad Request`: `{ "message": "Failed to create app config" }`
+
+### Example Request
+```bash
+curl -X POST "https://jethings-backend.fly.dev/app-config" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -d '{
+    "minVersion": "1.0.0",
+    "currentVersion": "1.2.3",
+    "releaseNotes": "Initial release with core features"
+  }'
+```
+
+---
+
+## Get All App Configurations (Admin Only)
+GET `/app-config`
+
+**Requires Authentication:** Bearer token in Authorization header  
+**Requires Role:** Admin or Super Admin
+
+### Success Response
+```json
+[
+  {
+    "id": "ck_123...",
+    "minVersion": "1.0.0",
+    "currentVersion": "1.2.3",
+    "releaseNotes": "Latest version with new features",
+    "isActive": true,
+    "createdAt": "2024-01-15T10:30:00.000Z",
+    "updatedAt": "2024-01-15T10:30:00.000Z"
+  },
+  {
+    "id": "ck_456...",
+    "minVersion": "0.9.0",
+    "currentVersion": "1.1.0",
+    "releaseNotes": "Previous stable version",
+    "isActive": false,
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-10T15:20:00.000Z"
+  }
+]
+```
+
+### Example Request
+```bash
+curl -X GET "https://jethings-backend.fly.dev/app-config" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+---
+
+## Get App Configuration by ID (Admin Only)
+GET `/app-config/:id`
+
+**Requires Authentication:** Bearer token in Authorization header  
+**Requires Role:** Admin or Super Admin
+
+### Path Parameters
+- `id` (string): Configuration ID (UUID format)
+
+### Success Response
+```json
+{
+  "id": "ck_123...",
+  "minVersion": "1.0.0",
+  "currentVersion": "1.2.3",
+  "releaseNotes": "Latest version with new features",
+  "isActive": true,
+  "createdAt": "2024-01-15T10:30:00.000Z",
+  "updatedAt": "2024-01-15T10:30:00.000Z"
+}
+```
+
+### Possible Errors
+- `404 Not Found`: `{ "message": "App config with ID ck_123... not found" }`
+
+### Example Request
+```bash
+curl -X GET "https://jethings-backend.fly.dev/app-config/ck_123..." \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+---
+
+## Update App Configuration (Admin Only)
+PUT `/app-config/:id`
+
+**Requires Authentication:** Bearer token in Authorization header  
+**Requires Role:** Admin or Super Admin
+
+### Path Parameters
+- `id` (string): Configuration ID (UUID format)
+
+### Request Body
+```json
+{
+  "minVersion": "1.1.0",
+  "currentVersion": "1.3.0",
+  "releaseNotes": "Updated with security patches and new features",
+  "isActive": true
+}
+```
+
+### Request Body Fields
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `minVersion` | string | No | Minimum supported app version |
+| `currentVersion` | string | No | Current app version |
+| `releaseNotes` | string | No | Release notes for the version |
+| `isActive` | boolean | No | Whether this config is active |
+
+### Success Response
+```json
+{
+  "id": "ck_123...",
+  "minVersion": "1.1.0",
+  "currentVersion": "1.3.0",
+  "releaseNotes": "Updated with security patches and new features",
+  "isActive": true,
+  "createdAt": "2024-01-15T10:30:00.000Z",
+  "updatedAt": "2024-01-15T12:00:00.000Z"
+}
+```
+
+### Possible Errors
+- `404 Not Found`: `{ "message": "App config with ID ck_123... not found" }`
+- `400 Bad Request`: `{ "message": "Failed to update app config" }`
+
+### Example Request
+```bash
+curl -X PUT "https://jethings-backend.fly.dev/app-config/ck_123..." \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -d '{
+    "currentVersion": "1.3.0",
+    "releaseNotes": "Updated with security patches and new features"
+  }'
+```
+
+---
+
+## Delete App Configuration (Admin Only)
+DELETE `/app-config/:id`
+
+**Requires Authentication:** Bearer token in Authorization header  
+**Requires Role:** Admin or Super Admin
+
+### Path Parameters
+- `id` (string): Configuration ID (UUID format)
+
+### Success Response
+```json
+No Content (204)
+```
+
+### Possible Errors
+- `404 Not Found`: `{ "message": "App config with ID ck_123... not found" }`
+
+**Warning:** This action permanently deletes the configuration. This cannot be undone.
+
+### Example Request
+```bash
+curl -X DELETE "https://jethings-backend.fly.dev/app-config/ck_123..." \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+---
+
+## Create or Update Active Configuration (Admin Only)
+PUT `/app-config/active`
+
+**Requires Authentication:** Bearer token in Authorization header  
+**Requires Role:** Admin or Super Admin
+
+This endpoint provides a convenient way to manage the active configuration. If an active configuration exists, it will be updated. If no active configuration exists, a new one will be created.
+
+### Request Body
+```json
+{
+  "minVersion": "1.0.0",
+  "currentVersion": "1.2.3",
+  "releaseNotes": "Updated active configuration",
+  "isActive": true
+}
+```
+
+### Success Response
+```json
+{
+  "id": "ck_123...",
+  "minVersion": "1.0.0",
+  "currentVersion": "1.2.3",
+  "releaseNotes": "Updated active configuration",
+  "isActive": true,
+  "createdAt": "2024-01-15T10:30:00.000Z",
+  "updatedAt": "2024-01-15T12:00:00.000Z"
+}
+```
+
+### Example Request
+```bash
+curl -X PUT "https://jethings-backend.fly.dev/app-config/active" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -d '{
+    "minVersion": "1.0.0",
+    "currentVersion": "1.2.3",
+    "releaseNotes": "Updated active configuration"
+  }'
+```
+
+---
+
+## Error Responses
+
+### Common Error Codes
+- `400 Bad Request`: Invalid request data or validation errors
+- `401 Unauthorized`: Missing or invalid authentication token
+- `403 Forbidden`: Insufficient permissions (not admin for admin-only endpoints)
+- `404 Not Found`: Resource not found
+- `409 Conflict`: Resource conflict (active config already exists)
+- `500 Internal Server Error`: Server error
+
+### Error Response Format
+```json
+{
+  "message": "Error description",
+  "statusCode": 400
+}
+```
+
+---
+
+## Interactive API Testing
+
+### Test Public Endpoint
+<RequestExample>
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/app-config/public"
+```
+
+</RequestExample>
+
+### Test with Authentication
+<RequestExample>
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/app-config" \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+```
+
+</RequestExample>
+
+---
+
+## Database Schema
+
+```sql
+CREATE TABLE app_config (
+  id TEXT PRIMARY KEY,
+  min_version TEXT NOT NULL,
+  current_version TEXT NOT NULL,
+  release_notes TEXT,
+  is_active BOOLEAN DEFAULT true NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+);
+```
