@@ -37,7 +37,8 @@
         "api-reference/auth-api",
         "api-reference/users-api",
         "api-reference/app-config-api",
-        "api-reference/stores-api"
+        "api-reference/stores-api",
+        "api-reference/purchase-invoice-api"
      
       ]
     }
