@@ -1,0 +1,392 @@
+# Price List API
+
+Audience: Frontend engineers managing price lists for stores.
+
+- Base URL: `https://jethings-backend.fly.dev`
+- Content-Type: `application/json`
+
+### Conventions
+- All responses are JSON.
+- Errors follow standard HTTP status codes with `{ message: string }` body.
+- Unless noted, successful responses are `200 OK`.
+- All endpoints require authentication via Bearer token.
+- All endpoints require `x-store-id` header to scope requests to a specific store.
+- Access is controlled through user-store relationships.
+
+---
+
+## Headers
+
+| Header       | Type     | Required | Description                                  |
+|--------------|----------|----------|----------------------------------------------|
+| `x-store-id` | `string` | ✅        | Store ID associated with the current request |
+| `Authorization` | `string` | ✅        | Bearer token for authentication (e.g., `Bearer <token>`) |
+
+---
+
+## Get All Price Lists
+
+GET `/price-lists`
+
+**Requires Authentication:** Bearer token in Authorization header  
+**Requires Header:** `x-store-id`
+
+Retrieve a paginated list of price lists for a store with support for filtering, searching, and sorting.
+
+### Query Parameters
+
+| Parameter   | Type           | Required | Default     | Description                |
+|-------------|----------------|----------|-------------|----------------------------|
+| `isActive`  | `boolean`      | No       | —           | Filter by active status    |
+| `search`    | `string`       | No       | —           | Filter price lists by name |
+| `page`      | `number`       | No       | `1`         | Current page               |
+| `limit`     | `number`       | No       | `10`        | Number of results per page |
+| `sortBy`    | `string`       | No       | `createdAt` | Field to sort by           |
+| `sortOrder` | `asc` / `desc` | No       | `desc`      | Sorting order              |
+
+### Success Response
+
+```json
+{
+  "data": [
+    {
+      "id": "pl_123456",
+      "storeId": "clh1234567890abcdef",
+      "name": "Holiday Sale 2024",
+      "createdAt": "2024-11-01T10:00:00Z",
+      "customers": 0,
+      "isActive": true
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 25,
+    "totalPages": 3,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
+
+### Possible Errors
+- `401 Unauthorized`: Missing or invalid authentication token
+- `403 Forbidden`: No store access
+- `500 Internal Server Error`: Server error
+
+### Example Request
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/price-lists?page=1&limit=10" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "x-store-id: clh1234567890abcdef"
+```
+
+---
+
+## Create Price List
+
+POST `/price-lists`
+
+**Requires Authentication:** Bearer token in Authorization header  
+**Requires Header:** `x-store-id`
+
+Create a new price list under a specific store. The new list is automatically associated with the store specified in the `x-store-id` header.
+
+### Request Body
+
+| Field         | Type      | Required | Description                     |
+|---------------|-----------|----------|---------------------------------|
+| `name`        | `string`  | Yes      | Name of the price list          |
+| `description` | `string`  | No       | Description (max 1000 chars)    |
+| `isBuying`    | `boolean` | No       | Whether the list is for buying  |
+| `isSelling`   | `boolean` | No       | Whether the list is for selling |
+
+### Request Body Example
+
+```json
+{
+  "name": "Holiday Sale 2024",
+  "description": "Special pricing for holiday season",
+  "isBuying": false,
+  "isSelling": true
+}
+```
+
+### Success Response
+
+```json
+{
+  "id": "pl_123456",
+  "storeId": "clh1234567890abcdef",
+  "name": "Holiday Sale 2024",
+  "createdAt": "2024-11-01T10:00:00Z",
+  "customers": 0,
+  "isActive": true
+}
+```
+
+### Possible Errors
+- `400 Bad Request`: Invalid input or validation errors
+- `401 Unauthorized`: Missing or invalid authentication token
+- `403 Forbidden`: No store access
+- `500 Internal Server Error`: Server error
+
+### Example Request
+
+```bash
+curl -X POST "https://jethings-backend.fly.dev/price-lists" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "x-store-id: clh1234567890abcdef" \
+  -d '{
+    "name": "Holiday Sale 2024",
+    "description": "Special pricing for holiday season",
+    "isBuying": false,
+    "isSelling": true
+  }'
+```
+
+---
+
+## Update Price List
+
+PUT `/price-lists/:id`
+
+**Requires Authentication:** Bearer token in Authorization header  
+**Requires Header:** `x-store-id`
+
+Update a specific price list by its ID.
+
+### Path Parameters
+
+| Parameter | Type     | Required | Description   |
+|-----------|----------|----------|---------------|
+| `id`      | `string` | Yes      | Price list ID |
+
+### Request Body
+
+| Field         | Type      | Required | Description          |
+|---------------|-----------|----------|----------------------|
+| `name`        | `string`  | No       | New name             |
+| `description` | `string`  | No       | Updated description  |
+| `isActive`    | `boolean` | No       | Activate/deactivate  |
+| `isBuying`    | `boolean` | No       | Mark as buying list  |
+| `isSelling`   | `boolean` | No       | Mark as selling list |
+
+### Request Body Example
+
+```json
+{
+  "name": "Updated Holiday Sale 2024",
+  "description": "Updated description for holiday pricing",
+  "isActive": true
+}
+```
+
+### Success Response
+
+```json
+{
+  "id": "pl_123456",
+  "storeId": "clh1234567890abcdef",
+  "name": "Updated Holiday Sale 2024",
+  "createdAt": "2024-11-01T10:00:00Z",
+  "customers": 0,
+  "isActive": true
+}
+```
+
+### Possible Errors
+- `400 Bad Request`: Invalid input or validation errors
+- `401 Unauthorized`: Missing or invalid authentication token
+- `404 Not Found`: Price list not found
+- `500 Internal Server Error`: Server error
+
+### Example Request
+
+```bash
+curl -X PUT "https://jethings-backend.fly.dev/price-lists/pl_123456" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "x-store-id: clh1234567890abcdef" \
+  -d '{
+    "name": "Updated Holiday Sale 2024",
+    "description": "Updated description for holiday pricing",
+    "isActive": true
+  }'
+```
+
+---
+
+## Delete Multiple Price Lists
+
+DELETE `/price-lists`
+
+**Requires Authentication:** Bearer token in Authorization header  
+**Requires Header:** `x-store-id`
+
+Delete multiple price lists by their IDs.
+
+### Request Body
+
+| Field | Type       | Required | Description                       |
+|-------|------------|----------|-----------------------------------|
+| `ids` | `string[]` | Yes      | Array of price list IDs to delete |
+
+### Request Body Example
+
+```json
+{
+  "ids": ["pl_123456", "pl_654321"]
+}
+```
+
+### Success Response
+
+```json
+{
+  "message": "Successfully deleted 2 price list(s)",
+  "deletedCount": 2
+}
+```
+
+### Possible Errors
+- `400 Bad Request`: No IDs provided
+- `401 Unauthorized`: Missing or invalid authentication token
+- `404 Not Found`: No valid price lists found
+- `500 Internal Server Error`: Server error
+
+### Example Request
+
+```bash
+curl -X DELETE "https://jethings-backend.fly.dev/price-lists" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "x-store-id: clh1234567890abcdef" \
+  -d '{
+    "ids": ["pl_123456", "pl_654321"]
+  }'
+```
+
+---
+
+## DTOs Overview
+
+### CreatePriceListDto
+
+```typescript
+{
+  name: string;
+  isBuying?: boolean;
+  isSelling?: boolean;
+  description?: string;
+}
+```
+
+### UpdatePriceListDto
+
+```typescript
+{
+  name?: string;
+  isActive?: boolean;
+  isBuying?: boolean;
+  isSelling?: boolean;
+  description?: string;
+}
+```
+
+### DeletePriceListsDto
+
+```typescript
+{
+  ids: string[];
+}
+```
+
+### GetPriceListsDto
+
+```typescript
+{
+  isActive?: boolean;
+  search?: string;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+```
+
+### PriceListResponseDto
+
+```typescript
+{
+  id: string;
+  storeId: string;
+  name: string;
+  createdAt: Date;
+  customers: number;
+  isActive: boolean;
+}
+```
+
+### PaginatedPriceListsResponseDto
+
+```typescript
+{
+  data: PriceListResponseDto[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+```
+
+---
+
+## Business Logic
+
+### Price List Creation Flow
+1. User creates a price list with name and optional description
+2. Price list is automatically associated with the store from `x-store-id` header
+3. Price list is created with `isActive: true` by default
+4. Can be marked as buying list, selling list, or both
+
+### Access Control
+- All endpoints require the `x-store-id` header
+- Users must have access to the store specified in the header
+- Access is controlled through user-store relationships
+
+### Price List Updates
+- Users can update any field of price lists in stores they have access to
+- `isActive` field controls whether the price list is active
+- Supports buying/selling list types
+
+### Price List Deletion
+- Multiple price lists can be deleted in a single request
+- Returns count of successfully deleted price lists
+- Only accessible to users with store access
+
+---
+
+## Error Responses
+
+### Common Error Codes
+- `400 Bad Request`: Invalid request data or validation errors
+- `401 Unauthorized`: Missing or invalid authentication token
+- `403 Forbidden`: No access to the specified store
+- `404 Not Found`: Price list not found
+- `500 Internal Server Error`: Server error
+
+### Error Response Format
+```json
+{
+  "message": "Error description",
+  "statusCode": 400
+}
+```
+

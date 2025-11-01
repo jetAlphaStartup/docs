@@ -1,0 +1,529 @@
+---
+title: "Purchase Order API"
+description: "Create and manage purchase orders with items and suppliers"
+---
+
+# Purchase Order API
+
+The Purchase Order API allows you to create purchase orders and retrieve a paginated list of all purchase orders for a store. Purchase orders track orders from suppliers before they are fulfilled.
+
+<Note>
+All endpoints require authentication via Bearer token in the Authorization header. Users must have access to the store via `userStoreRelation`.
+</Note>
+
+## Base URL
+
+```
+/purchase-order
+```
+
+---
+
+## 📦 1. Create Purchase Order
+
+### Endpoint
+
+```
+POST /purchase-order
+```
+
+### Description
+
+Creates a new purchase order with its associated items. This endpoint accepts a `multipart/form-data` request with a JSON string under the key `jsonData`.
+
+---
+
+### Required Headers
+
+| Key             | Value                 |
+| --------------- | --------------------- |
+| `Authorization` | `Bearer <JWT_TOKEN>`  |
+| `Content-Type`  | `multipart/form-data` |
+
+<Note>
+The request is restricted to users linked to the store via `userStoreRelation`. The store ID should be derived from the authenticated user's store relations.
+</Note>
+
+---
+
+### Body Parameters
+
+> The `jsonData` field must contain a JSON string in this format:
+
+```json
+{
+  "supplierId": "uuid",
+  "purchaseDate": "2024-01-15",
+  "doc_status": "DRAFT",
+  "purchaseOrderItems": [
+    {
+      "itemName": "Variant ID or Name",
+      "quantity": 10,
+      "price": 25.5,
+      "priceTotal": 255
+    },
+    {
+      "itemName": "Another Variant",
+      "quantity": 5,
+      "price": 15.0,
+      "priceTotal": 75
+    }
+  ]
+}
+```
+
+| Field                             | Type                                   | Required | Description                                           |
+| --------------------------------- | -------------------------------------- | -------- | ----------------------------------------------------- |
+| `supplierId`                      | `string` (UUID)                        | ✅        | The supplier's unique ID                              |
+| `purchaseDate`                    | `string` (Date)                        | ✅        | The date of the purchase order (format: `YYYY-MM-DD`) |
+| `doc_status`                      | `"DRAFT" \| "PUBLISHED" \| "CANCELED"` | ✅        | The current status of the purchase order              |
+| `purchaseOrderItems`              | `array`                                | ✅        | List of purchase order items                          |
+| `purchaseOrderItems[].itemName`   | `string`                               | ✅        | The variant name or ID                                |
+| `purchaseOrderItems[].quantity`   | `number`                               | ✅        | Quantity ordered                                      |
+| `purchaseOrderItems[].price`      | `number`                               | ✅        | Price per unit                                        |
+| `purchaseOrderItems[].priceTotal` | `number`                               | ⚙️       | (Optional) Calculated client-side total               |
+
+---
+
+### Example Requests
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://jethings-backend.fly.dev/purchase-order \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: multipart/form-data" \
+  -F 'jsonData={"supplierId":"uuid","purchaseDate":"2024-01-15","doc_status":"DRAFT","purchaseOrderItems":[{"itemName":"Variant ID or Name","quantity":10,"price":25.5,"priceTotal":255},{"itemName":"Another Variant","quantity":5,"price":15.0,"priceTotal":75}]}'
+```
+
+```typescript TypeScript
+const formData = new FormData();
+
+const jsonData = {
+  supplierId: "uuid",
+  purchaseDate: "2024-01-15",
+  doc_status: "DRAFT",
+  purchaseOrderItems: [
+    {
+      itemName: "Variant ID or Name",
+      quantity: 10,
+      price: 25.5,
+      priceTotal: 255
+    },
+    {
+      itemName: "Another Variant",
+      quantity: 5,
+      price: 15.0,
+      priceTotal: 75
+    }
+  ]
+};
+
+formData.append('jsonData', JSON.stringify(jsonData));
+
+const response = await fetch('https://jethings-backend.fly.dev/purchase-order', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${accessToken}`
+  },
+  body: formData
+});
+
+const result = await response.json();
+```
+
+```javascript JavaScript
+const formData = new FormData();
+
+const jsonData = {
+  supplierId: "uuid",
+  purchaseDate: "2024-01-15",
+  doc_status: "DRAFT",
+  purchaseOrderItems: [
+    {
+      itemName: "Variant ID or Name",
+      quantity: 10,
+      price: 25.5,
+      priceTotal: 255
+    },
+    {
+      itemName: "Another Variant",
+      quantity: 5,
+      price: 15.0,
+      priceTotal: 75
+    }
+  ]
+};
+
+formData.append('jsonData', JSON.stringify(jsonData));
+
+fetch('https://jethings-backend.fly.dev/purchase-order', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${accessToken}`
+  },
+  body: formData
+})
+  .then(response => response.json())
+  .then(data => console.log(data));
+```
+
+```python Python
+import requests
+import json
+
+url = "https://jethings-backend.fly.dev/purchase-order"
+
+json_data = {
+    "supplierId": "uuid",
+    "purchaseDate": "2024-01-15",
+    "doc_status": "DRAFT",
+    "purchaseOrderItems": [
+        {
+            "itemName": "Variant ID or Name",
+            "quantity": 10,
+            "price": 25.5,
+            "priceTotal": 255
+        },
+        {
+            "itemName": "Another Variant",
+            "quantity": 5,
+            "price": 15.0,
+            "priceTotal": 75
+        }
+    ]
+}
+
+response = requests.post(
+    url,
+    headers={
+        'Authorization': f'Bearer {access_token}'
+    },
+    data={'jsonData': json.dumps(json_data)}
+)
+
+print(response.json())
+```
+
+```dart Flutter
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+final url = Uri.parse('https://jethings-backend.fly.dev/purchase-order');
+
+final jsonData = {
+  'supplierId': 'uuid',
+  'purchaseDate': '2024-01-15',
+  'doc_status': 'DRAFT',
+  'purchaseOrderItems': [
+    {
+      'itemName': 'Variant ID or Name',
+      'quantity': 10,
+      'price': 25.5,
+      'priceTotal': 255
+    },
+    {
+      'itemName': 'Another Variant',
+      'quantity': 5,
+      'price': 15.0,
+      'priceTotal': 75
+    }
+  ]
+};
+
+final request = http.MultipartRequest('POST', url);
+request.headers['Authorization'] = 'Bearer $accessToken';
+request.fields['jsonData'] = jsonEncode(jsonData);
+
+final response = await request.send();
+final responseData = await response.stream.bytesToString();
+print(jsonDecode(responseData));
+```
+</CodeGroup>
+
+---
+
+### Success Response (200)
+
+```json
+{
+  "success": true,
+  "purchaseOrder": {
+    "id": "uuid",
+    "supplierId": "uuid",
+    "storeId": "uuid",
+    "createdAt": "2024-01-15T10:00:00.000Z",
+    "updatedAt": "2024-01-15T10:00:00.000Z",
+    "postingTime": "2024-01-15T00:00:00.000Z",
+    "requiredBy": "2024-01-15T00:00:00.000Z",
+    "updateStock": true,
+    "doc_status": "DRAFT"
+  },
+  "purchaseOrderItems": [
+    {
+      "id": "uuid",
+      "purchaseOrderItem": "uuid",
+      "itemVariant": "Variant ID or Name",
+      "qty": "10",
+      "price": "25.5"
+    }
+  ]
+}
+```
+
+---
+
+### Error Responses
+
+#### 403 Forbidden
+
+```json
+{
+  "statusCode": 403,
+  "message": "You do not have access to this store"
+}
+```
+
+#### 400 Bad Request
+
+```json
+{
+  "statusCode": 400,
+  "message": "Validation error description"
+}
+```
+
+---
+
+### Notes
+
+- The request is restricted to users linked to the store via `userStoreRelation`.
+- Automatically sets timestamps and initializes `updateStock = true`.
+- `postingTime` and `requiredBy` are both derived from `purchaseDate`.
+
+---
+
+## 📋 2. Get All Purchase Orders
+
+### Endpoint
+
+```
+GET /purchase-order
+```
+
+### Description
+
+Returns a paginated list of all purchase orders for a specific store. This endpoint supports filtering, searching, sorting, and pagination.
+
+---
+
+### Required Headers
+
+| Key             | Value                |
+| --------------- | -------------------- |
+| `Authorization` | `Bearer <JWT_TOKEN>` |
+
+---
+
+### Query Parameters
+
+| Parameter      | Type              | Default     | Description                                              |
+| -------------- | ----------------- | ----------- | -------------------------------------------------------- |
+| `search`       | `string`          | –           | Search by supplier name                                  |
+| `supplierName` | `string`          | –           | Filter by supplier name                                  |
+| `page`         | `number`          | `1`         | Current page number                                      |
+| `limit`        | `number`          | `10`        | Number of results per page                               |
+| `sortBy`       | `string`          | `createdAt` | Sort field (`createdAt`, `updatedAt`, or `supplierName`) |
+| `sortOrder`    | `"asc" \| "desc"` | `"desc"`    | Sorting order                                            |
+
+---
+
+### Example Requests
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://jethings-backend.fly.dev/purchase-order?page=1&limit=10&sortBy=createdAt&sortOrder=desc" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+```typescript TypeScript
+const response = await fetch(
+  'https://jethings-backend.fly.dev/purchase-order?page=1&limit=10&sortBy=createdAt&sortOrder=desc',
+  {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }
+  }
+);
+
+const data = await response.json();
+```
+
+```javascript JavaScript
+fetch('https://jethings-backend.fly.dev/purchase-order?page=1&limit=10&sortBy=createdAt&sortOrder=desc', {
+  headers: {
+    'Authorization': `Bearer ${accessToken}`,
+    'Content-Type': 'application/json'
+  }
+})
+  .then(response => response.json())
+  .then(data => console.log(data));
+```
+
+```python Python
+import requests
+
+url = "https://jethings-backend.fly.dev/purchase-order"
+params = {
+    "page": 1,
+    "limit": 10,
+    "sortBy": "createdAt",
+    "sortOrder": "desc"
+}
+
+response = requests.get(
+    url,
+    headers={
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json'
+    },
+    params=params
+)
+
+print(response.json())
+```
+
+```dart Flutter
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+final url = Uri.parse('https://jethings-backend.fly.dev/purchase-order')
+    .replace(queryParameters: {
+  'page': '1',
+  'limit': '10',
+  'sortBy': 'createdAt',
+  'sortOrder': 'desc'
+});
+
+final response = await http.get(
+  url,
+  headers: {
+    'Authorization': 'Bearer $accessToken',
+    'Content-Type': 'application/json'
+  },
+);
+
+final data = jsonDecode(response.body);
+print(data);
+```
+</CodeGroup>
+
+---
+
+### Success Response (200)
+
+```json
+{
+  "data": [
+    {
+      "invoiceId": "uuid",
+      "supplierName": "ACME Supplies",
+      "createdAt": "2024-01-15T10:00:00.000Z",
+      "updatedAt": "2024-01-15T11:00:00.000Z",
+      "amountPaid": 0,
+      "paymentStatus": "PAID",
+      "stockUpdate": true
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 25,
+    "totalPages": 3,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
+
+---
+
+### Error Responses
+
+#### 403 Forbidden
+
+```json
+{
+  "statusCode": 403,
+  "message": "You do not have access to this store"
+}
+```
+
+#### 400 Bad Request
+
+```json
+{
+  "statusCode": 400,
+  "message": "Invalid query parameters"
+}
+```
+
+---
+
+### Notes
+
+- Requires store-level permission (validated by `userStoreRelation`).
+- Joins with the `supplier` table to retrieve supplier names.
+- Sorting, searching, and pagination are all supported.
+- This endpoint is ideal for displaying purchase order lists in dashboards.
+
+---
+
+## Status Values
+
+The `doc_status` field in purchase orders can have the following values:
+
+| Status      | Description                                    |
+| ----------- | ---------------------------------------------- |
+| `DRAFT`     | Purchase order is in draft status              |
+| `PUBLISHED` | Purchase order has been published/sent         |
+| `CANCELED`  | Purchase order has been canceled               |
+
+---
+
+## Common Error Codes
+
+| Status Code | Description                          | Possible Causes                                    |
+| ----------- | ------------------------------------ | -------------------------------------------------- |
+| `400`       | Bad Request                          | Invalid request data, missing required fields      |
+| `401`       | Unauthorized                         | Missing or invalid authentication token            |
+| `403`       | Forbidden                            | User does not have access to the store             |
+| `404`       | Not Found                            | Supplier not found or invalid ID                   |
+| `500`       | Internal Server Error                | Server error during processing                     |
+
+---
+
+## Business Logic
+
+### Purchase Order Creation Flow
+
+1. User creates a purchase order with supplier, date, status, and items
+2. Purchase order is created with `updateStock = true` by default
+3. `postingTime` and `requiredBy` are automatically set from `purchaseDate`
+4. Purchase order items are linked to the purchase order
+5. User must have access to the store via `userStoreRelation`
+
+### Purchase Order Retrieval Flow
+
+1. System validates user has access to the store
+2. Retrieves purchase orders with supplier information (via join)
+3. Applies filters, search, and sorting
+4. Returns paginated results with metadata
+
+---
+
+## Related APIs
+
+- [Purchase Invoice API](/api-reference/purchase-invoice-api) - Create and manage purchase invoices
+- [Stores API](/api-reference/stores-api) - Manage stores and store access
+
