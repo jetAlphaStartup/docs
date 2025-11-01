@@ -1,0 +1,156 @@
+---
+title: "POS API"
+description: "Point of Sale API for retrieving and managing products"
+---
+
+# POS API
+
+The POS (Point of Sale) API provides endpoints for retrieving products in a store's inventory. This API is designed for point-of-sale systems to quickly search and access product information.
+
+<Note>
+All POS API endpoints require the `x-store-id` header to identify which store's products you want to access.
+</Note>
+
+## Endpoint Details
+
+**Base URL:** `https://jethings-backend.fly.dev`  
+**Content-Type:** `application/json`
+
+### Required Headers
+
+```
+x-store-id: <store_id>
+Authorization: Bearer <token>
+```
+
+<Warning>
+The `x-store-id` header is required for all POS endpoints. Requests without this header will be rejected.
+</Warning>
+
+---
+
+## Get Products
+
+GET `/pos/products`
+
+Retrieve a paginated list of products from a store's inventory. Supports search functionality to filter products.
+
+**Requires Authentication:** Bearer token in Authorization header  
+**Requires Header:** `x-store-id`
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `search` | string | No | Search term to filter products (e.g., by barcode, name, or product reference) |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "data": [
+    {
+      "name": "null",
+      "image": "https://abdellah.b-cdn.net/products/items/nc0kzztvw8k0navwc6i3juuk/1761828362970_H0t0sJZopuiOsQtqp4euPrdkBZvTg4r21135F720.jpg",
+      "quantity": 49,
+      "price": 0,
+      "createdAt": "2025-10-30T12:46:02.628Z",
+      "updatedAt": "2025-10-30T12:46:02.628Z",
+      "id": "cukh3liez2g9mzsk5ucqgyl3"
+    },
+    {
+      "name": "Nike one",
+      "image": "https://abdellah.b-cdn.net/products/items/h9twtvzikih4mrqng29apcyw/1761832047401_H0t0sJZopuiOsQtqp4euPrdkBZvTg4r21135F720.jpg",
+      "quantity": 55,
+      "price": 0,
+      "createdAt": "2025-10-30T13:47:26.896Z",
+      "updatedAt": "2025-10-30T13:47:26.896Z",
+      "id": "t191h7axvurl5k0t17m63n3d"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 2,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrev": false
+  }
+}
+```
+
+### Response Fields
+
+#### Product Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique product identifier |
+| `name` | string \| null | Product name (can be null) |
+| `image` | string | URL to the product image |
+| `quantity` | number | Available quantity in stock |
+| `price` | number | Product price |
+| `createdAt` | string (ISO 8601) | Product creation timestamp |
+| `updatedAt` | string (ISO 8601) | Last update timestamp |
+
+#### Pagination Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `page` | number | Current page number |
+| `limit` | number | Number of items per page |
+| `total` | number | Total number of items |
+| `totalPages` | number | Total number of pages |
+| `hasNext` | boolean | Whether there is a next page |
+| `hasPrev` | boolean | Whether there is a previous page |
+
+### Possible Errors
+
+- `400 Bad Request`: Invalid query parameters or missing required headers
+- `401 Unauthorized`: Missing or invalid authentication token
+- `403 Forbidden`: Insufficient permissions or invalid store access
+- `404 Not Found`: Store not found
+
+### Example Requests
+
+**Get all products:**
+```bash
+curl -X GET "https://jethings-backend.fly.dev/pos/products" \
+  -H "x-store-id: YOUR_STORE_ID" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+**Search products by barcode:**
+```bash
+curl -X GET "https://jethings-backend.fly.dev/pos/products?search=B001" \
+  -H "x-store-id: YOUR_STORE_ID" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+**Search products by name:**
+```bash
+curl -X GET "https://jethings-backend.fly.dev/pos/products?search=Nike" \
+  -H "x-store-id: YOUR_STORE_ID" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+---
+
+## Business Logic
+
+### Store Context
+- All product queries are scoped to the store specified in the `x-store-id` header
+- The store ID must be valid and the user must have access to that store
+- Products from other stores are not accessible through this endpoint
+
+### Search Functionality
+- The search parameter filters products across multiple fields (e.g., barcode, name, reference)
+- Search is case-insensitive and supports partial matching
+- If no search parameter is provided, all products in the store are returned (with pagination)
+
+### Pagination
+- Results are paginated by default
+- Default page size is 10 items per page
+- Use pagination metadata to navigate through results
