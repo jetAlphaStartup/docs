@@ -1,0 +1,360 @@
+# Item Price API
+
+Audience: Frontend engineers managing item prices within price lists.
+
+- Base URL: `https://jethings-backend.fly.dev`
+- Content-Type: `application/json`
+
+### Conventions
+- All responses are JSON.
+- Errors follow standard HTTP status codes with `{ message: string }` body.
+- Unless noted, successful responses are `200 OK`.
+- All endpoints require authentication via Bearer token.
+- All endpoints require `x-store-id` header to scope requests to a specific store.
+- Access is controlled through user-store relationships.
+
+---
+
+## Headers
+
+| Header       | Type     | Required | Description                                  |
+|--------------|----------|----------|----------------------------------------------|
+| `x-store-id` | `string` | ✅        | Store ID associated with the current request |
+| `Authorization` | `string` | ✅        | Bearer token for authentication (e.g., `Bearer <token>`) |
+
+---
+
+## Overview
+
+The Item Price API manages item pricing within a specific price list. It allows creating, updating, and retrieving item prices for a given price list or product.
+
+**Base URL:** `/item-price`
+
+<Info>
+This API works with price lists created through the [Price List API](/api-reference/price-list-api).
+</Info>
+
+---
+
+## Set or Update Item Prices
+
+POST `/item-price/:priceListId`
+
+**Requires Authentication:** Bearer token in Authorization header  
+**Requires Header:** `x-store-id`
+
+Assign or update multiple item prices for a given price list.
+
+### Path Parameters
+
+| Parameter     | Type     | Required | Description          |
+|---------------|----------|----------|----------------------|
+| `priceListId` | `string` | ✅        | ID of the price list |
+
+### Request Body
+
+| Field         | Type   | Required | Description                  |
+|---------------|--------|----------|------------------------------|
+| `productId`   | `string` | No     | ID of the product            |
+| `itemPrices`  | `array`  | ✅      | Array of item price objects  |
+
+### Item Price Object
+
+| Field       | Type     | Required | Description                |
+|-------------|----------|----------|----------------------------|
+| `itemId`    | `string` | ✅        | ID of the item             |
+| `itemPrice` | `number` | ✅        | Price for the item         |
+
+### Request Body Example
+
+```json
+{
+  "productId": "v2jz60ixy12rn8yledp5hbj5",
+  "itemPrices": [
+    {
+      "itemId": "r8fylfw9qwg59fq64lfx40m3",
+      "itemPrice": 11500
+    },
+    {
+      "itemId": "bht3aspmzo2cg3kkhxzirf99",
+      "itemPrice": 10800
+    }
+  ]
+}
+```
+
+### Success Response
+
+```json
+{
+  "success": "Item prices have been set",
+  "priceList": {
+    "id": "p8z2x0vy1s",
+    "name": "Wholesale Prices",
+    "isBuying": false,
+    "isSelling": true
+  },
+  "itemPrices": [
+    {
+      "id": "q9x4v8sd5e",
+      "itemId": "r8fylfw9qwg59fq64lfx40m3",
+      "priceListId": "p8z2x0vy1s",
+      "price": 11500
+    },
+    {
+      "id": "y2h8b3kd6r",
+      "itemId": "bht3aspmzo2cg3kkhxzirf99",
+      "priceListId": "p8z2x0vy1s",
+      "price": 10800
+    }
+  ]
+}
+```
+
+### Logic Summary
+
+- Checks if the price list exists
+- For each item:
+  - If a price already exists, it updates it
+  - Otherwise, inserts a new price record
+- Returns updated or newly created item prices
+
+### Possible Errors
+
+- `400 Bad Request`: Invalid input or validation errors
+- `401 Unauthorized`: Missing or invalid authentication token
+- `403 Forbidden`: No store access
+- `404 Not Found`: Price list not found
+- `500 Internal Server Error`: Server error
+
+### Example Request
+
+```bash
+curl -X POST "https://jethings-backend.fly.dev/item-price/p8z2x0vy1s" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "x-store-id: clh1234567890abcdef" \
+  -d '{
+    "productId": "v2jz60ixy12rn8yledp5hbj5",
+    "itemPrices": [
+      {
+        "itemId": "r8fylfw9qwg59fq64lfx40m3",
+        "itemPrice": 11500
+      },
+      {
+        "itemId": "bht3aspmzo2cg3kkhxzirf99",
+        "itemPrice": 10800
+      }
+    ]
+  }'
+```
+
+---
+
+## Get Prices for a Product
+
+GET `/item-price/:priceListId/product/:productId`
+
+**Requires Authentication:** Bearer token in Authorization header  
+**Requires Header:** `x-store-id`
+
+Retrieve all item prices for a given product under a specific price list.
+
+### Path Parameters
+
+| Parameter     | Type     | Required | Description          |
+|---------------|----------|----------|----------------------|
+| `priceListId` | `string` | ✅        | ID of the price list |
+| `productId`   | `string` | ✅        | ID of the product    |
+
+### Success Response
+
+```json
+{
+  "success": "Item prices retrieved successfully",
+  "priceList": {
+    "id": "p8z2x0vy1s",
+    "name": "Retail Prices",
+    "isBuying": false,
+    "isSelling": true
+  },
+  "product": {
+    "id": "v2jz60ixy12rn8yledp5hbj5",
+    "name": "Coca-Cola 1L"
+  },
+  "itemPrices": [
+    {
+      "itemId": "r8fylfw9qwg59fq64lfx40m3",
+      "itemName": "Single Bottle",
+      "price": 11500,
+      "priceId": "q9x4v8sd5e",
+      "hasPrice": true
+    },
+    {
+      "itemId": "bht3aspmzo2cg3kkhxzirf99",
+      "itemName": "Pack of 6",
+      "price": 10800,
+      "priceId": "y2h8b3kd6r",
+      "hasPrice": true
+    }
+  ]
+}
+```
+
+### Logic Summary
+
+- Verifies price list existence
+- Fetches all items related to the product
+- Finds associated prices (if any) for each item
+- Returns a combined result of items and prices
+
+### Possible Errors
+
+- `401 Unauthorized`: Missing or invalid authentication token
+- `403 Forbidden`: No store access
+- `404 Not Found`: Price list not found or no items found for this product
+- `500 Internal Server Error`: Server error
+
+### Example Request
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/item-price/p8z2x0vy1s/product/v2jz60ixy12rn8yledp5hbj5" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "x-store-id: clh1234567890abcdef"
+```
+
+---
+
+## Get All Item Prices by Price List
+
+GET `/item-price/:priceListId`
+
+**Requires Authentication:** Bearer token in Authorization header  
+**Requires Header:** `x-store-id`
+
+Retrieve all item prices grouped by product for a specific price list.
+
+### Path Parameters
+
+| Parameter     | Type     | Required | Description          |
+|---------------|----------|----------|----------------------|
+| `priceListId` | `string` | ✅        | ID of the price list |
+
+### Success Response
+
+```json
+{
+  "success": "All item prices retrieved successfully",
+  "priceList": {
+    "id": "p8z2x0vy1s",
+    "name": "Wholesale Prices",
+    "isBuying": false,
+    "isSelling": true
+  },
+  "products": [
+    {
+      "product": {
+        "id": "v2jz60ixy12rn8yledp5hbj5",
+        "name": "Coca-Cola 1L"
+      },
+      "items": [
+        {
+          "itemId": "r8fylfw9qwg59fq64lfx40m3",
+          "itemName": "Single Bottle",
+          "price": 11500,
+          "priceId": "q9x4v8sd5e"
+        },
+        {
+          "itemId": "bht3aspmzo2cg3kkhxzirf99",
+          "itemName": "Pack of 6",
+          "price": 10800,
+          "priceId": "y2h8b3kd6r"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Logic Summary
+
+- Verifies the price list exists
+- Fetches all related `itemPrice` records, including product and item info
+- Groups results by product
+- Returns structured data for easier frontend display
+
+### Possible Errors
+
+- `401 Unauthorized`: Missing or invalid authentication token
+- `403 Forbidden`: No store access
+- `404 Not Found`: Price list not found
+- `500 Internal Server Error`: Server error
+
+### Example Request
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/item-price/p8z2x0vy1s" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "x-store-id: clh1234567890abcdef"
+```
+
+---
+
+## DTOs Overview
+
+### ItemPricesDto
+
+```typescript
+{
+  productId?: string;
+  itemPrices: {
+    itemId: string;
+    itemPrice: number;
+  }[];
+}
+```
+
+---
+
+## Business Logic
+
+### Item Price Service Logic
+
+#### `ItemPriceService.setProductItemPrices(priceListId, itemPrices)`
+- Validates `priceListId`
+- Iterates over `itemPrices`
+- Uses `Promise.all()` to handle multiple updates/inserts concurrently
+- Returns updated list of all items with their prices
+
+#### `ItemPriceService.getProductItemPrices(priceListId, productId)`
+- Validates both IDs
+- Fetches product items
+- Joins prices for each item
+- Returns a full breakdown per product
+
+#### `ItemPriceService.getAllItemPricesByPriceList(priceListId)`
+- Fetches all item prices linked to a price list
+- Groups them by product
+- Returns products with their items and respective prices
+
+---
+
+## Error Responses
+
+### Common Error Codes
+
+- `400 Bad Request`: Invalid request data or validation errors
+- `401 Unauthorized`: Missing or invalid authentication token
+- `403 Forbidden`: No access to the specified store
+- `404 Not Found`: Price list not found or no items found for this product
+- `500 Internal Server Error`: Server error
+
+### Error Response Format
+
+```json
+{
+  "message": "Error description",
+  "statusCode": 400
+}
+```
+

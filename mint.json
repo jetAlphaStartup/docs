@@ -39,6 +39,7 @@
         "api-reference/app-config-api",
         "api-reference/stores-api",
         "api-reference/price-list-api",
+        "api-reference/item-price-api",
         "api-reference/purchase-invoice-api",
         "api-reference/purchase-order-api",
         "api-reference/pos-api"
