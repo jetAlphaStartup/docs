@@ -1,0 +1,361 @@
+---
+title: "POS Profile API"
+description: "Point of Sale Profile management API for creating and managing cashier profiles"
+---
+
+# POS Profile API
+
+The POS Profile API provides endpoints for managing POS (Point of Sale) profiles within a store. Profiles represent user accounts or cashier identities associated with a specific store.
+
+<Note>
+All POS Profile API endpoints require authentication and automatically use the authenticated store ID.
+</Note>
+
+## Overview
+
+Each profile:
+- Belongs to one store
+- Has a **unique name** within that store
+- Stores a **hashed password**
+- Can be created, updated, listed, or deleted via these endpoints
+
+## Endpoint Details
+
+**Base URL:** `/pos-shift`  
+**Content-Type:** `application/json`
+
+### Required Headers
+
+```
+Authorization: Bearer <token>
+```
+
+<Warning>
+All routes require a valid `storeId` which is automatically injected via the `@StoreId()` decorator. Passwords are never returned in API responses.
+</Warning>
+
+---
+
+## Entity: POS Profile
+
+| Field       | Type     | Description                           |
+| ----------- | -------- | ------------------------------------- |
+| `id`        | `string` | Unique profile ID                     |
+| `storeId`   | `string` | Associated store identifier           |
+| `name`      | `string` | Profile name (unique per store)       |
+| `password`  | `string` | Hashed password (not returned in API) |
+| `createdAt` | `Date`   | Creation timestamp                    |
+| `updatedAt` | `Date`   | Last update timestamp                 |
+
+---
+
+## Create POS Profile
+
+**POST** `/pos-shift/create-shift`
+
+Creates a new POS profile under the authenticated store. The password is securely hashed before saving.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Request Body
+
+```json
+{
+  "name": "Cashier 1",
+  "password": "secret123"
+}
+```
+
+| Field     | Type   | Required | Description                           |
+| --------- | ------ | -------- | ------------------------------------- |
+| `name`    | string | Yes      | Profile name (unique per store)       |
+| `password` | string | Yes      | Password (minimum 6 characters)       |
+
+### Success Response
+
+**Status Code:** `201 Created`
+
+```json
+{
+  "id": "pf_123abc",
+  "storeId": "st_456xyz",
+  "name": "Cashier 1",
+  "createdAt": "2025-11-03T10:00:00.000Z",
+  "updatedAt": "2025-11-03T10:00:00.000Z"
+}
+```
+
+### Possible Errors
+
+| Code | Message                                   |
+| ---- | ----------------------------------------- |
+| 400  | Store ID, name, and password are required |
+| 400  | Password must be at least 6 characters    |
+| 409  | Profile with name already exists          |
+
+### Example Request
+
+```bash
+curl -X POST "https://jethings-backend.fly.dev/pos-shift/create-shift" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -d '{
+    "name": "Cashier 1",
+    "password": "secret123"
+  }'
+```
+
+---
+
+## Get All POS Profiles
+
+**GET** `/pos-shift/profiles`
+
+Retrieves all POS profiles for the current store, excluding passwords.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "profiles": [
+    {
+      "id": "pf_123abc",
+      "name": "Cashier 1",
+      "storeId": "st_456xyz",
+      "createdAt": "2025-10-30T12:00:00.000Z",
+      "updatedAt": "2025-10-30T12:00:00.000Z"
+    },
+    {
+      "id": "pf_456def",
+      "name": "Manager",
+      "storeId": "st_456xyz",
+      "createdAt": "2025-10-28T09:00:00.000Z",
+      "updatedAt": "2025-10-28T09:00:00.000Z"
+    }
+  ],
+  "total": 2
+}
+```
+
+### Response Fields
+
+#### Profile Object
+
+| Field       | Type   | Description                  |
+| ----------- | ------ | ---------------------------- |
+| `id`        | string | Unique profile identifier    |
+| `name`      | string | Profile name                 |
+| `storeId`   | string | Associated store identifier  |
+| `createdAt` | string | Creation timestamp (ISO 8601)|
+| `updatedAt` | string | Last update timestamp (ISO 8601)|
+
+#### Response Object
+
+| Field     | Type    | Description               |
+| --------- | ------- | ------------------------- |
+| `profiles` | array   | Array of profile objects  |
+| `total`   | number  | Total number of profiles  |
+
+### Possible Errors
+
+| Code | Message              |
+| ---- | -------------------- |
+| 400  | Store ID is required |
+
+### Example Request
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/pos-shift/profiles" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+---
+
+## Update POS Profile
+
+**PATCH** `/pos-shift/profile/:profileId`
+
+Updates a profile's name and/or password for a given store.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Path Parameters
+
+| Parameter  | Type   | Required | Description |
+| ---------- | ------ | -------- | ----------- |
+| `profileId` | string | Yes      | Profile ID  |
+
+### Request Body
+
+```json
+{
+  "name": "Cashier A",
+  "password": "newpassword123"
+}
+```
+
+| Field     | Type   | Required | Description                           |
+| --------- | ------ | -------- | ------------------------------------- |
+| `name`    | string | No       | New profile name (unique per store)   |
+| `password` | string | No       | New password (minimum 6 characters)   |
+
+**Note:** At least one field (name or password) must be provided.
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "id": "pf_123abc",
+  "storeId": "st_456xyz",
+  "name": "Cashier A",
+  "createdAt": "2025-10-30T12:00:00.000Z",
+  "updatedAt": "2025-11-03T10:05:00.000Z"
+}
+```
+
+### Possible Errors
+
+| Code | Message                                |
+| ---- | -------------------------------------- |
+| 400  | Profile ID and Store ID are required   |
+| 400  | Password must be at least 6 characters |
+| 404  | Profile not found                      |
+| 409  | Name already exists in this store      |
+
+### Example Request
+
+```bash
+curl -X PATCH "https://jethings-backend.fly.dev/pos-shift/profile/pf_123abc" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -d '{
+    "name": "Cashier A",
+    "password": "newpassword123"
+  }'
+```
+
+---
+
+## Delete POS Profile
+
+**DELETE** `/pos-shift/profile/:profileId`
+
+Deletes a POS profile permanently. If related records exist, they are deleted via database cascade.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Path Parameters
+
+| Parameter  | Type   | Required | Description |
+| ---------- | ------ | -------- | ----------- |
+| `profileId` | string | Yes      | Profile ID  |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Profile 'Cashier 1' has been deleted"
+}
+```
+
+### Possible Errors
+
+| Code | Message                              |
+| ---- | ------------------------------------ |
+| 400  | Profile ID and Store ID are required |
+| 404  | Profile not found                    |
+
+### Example Request
+
+```bash
+curl -X DELETE "https://jethings-backend.fly.dev/pos-shift/profile/pf_123abc" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+---
+
+## Security & Validation
+
+- All routes require a valid `storeId` (automatically injected via `@StoreId()` decorator)
+- Passwords are hashed using **bcrypt** with `SALT_ROUNDS = 10`
+- Input validation prevents empty fields or weak passwords
+- Duplicate profile names within the same store are disallowed
+- No password is ever returned in API responses
+
+---
+
+## Data Transfer Objects (DTOs)
+
+### `posProfileDto`
+
+```typescript
+export interface posProfileDto {
+  name: string;
+  password: string;
+}
+```
+
+---
+
+## Business Logic
+
+### Profile Creation
+- Profile name must be unique within the store
+- Password is automatically hashed before storage
+- Store ID is automatically associated from the authenticated context
+
+### Profile Updates
+- Either name or password (or both) can be updated
+- Name uniqueness is validated within the store scope
+- Password updates trigger re-hashing with bcrypt
+
+### Profile Deletion
+- Deletion is permanent (not soft delete)
+- Related records (if any) are deleted via database cascade
+- Profile ID and Store ID validation prevents unauthorized deletions
+
+### Password Security
+- All password operations (create/update/verify) are performed in the service layer
+- Passwords are hashed using bcrypt with 10 salt rounds
+- Raw passwords are never stored or returned in responses
+- Minimum password length is 6 characters
+
+---
+
+## Notes for Developers
+
+- All password operations (create/update/verify) are performed in the service layer
+- No password is ever returned in API responses
+- Profiles can later be linked to shift or POS session logic
+- The `verifyProfilePassword()` method exists in the service but is not yet exposed as an endpoint
+
+---
+
+## Error Responses
+
+### Common Error Codes
+
+| Code | Description                               |
+| ---- | ----------------------------------------- |
+| 400  | Bad Request - Invalid input or validation |
+| 404  | Not Found - Profile doesn't exist         |
+| 409  | Conflict - Duplicate profile name         |
+
+### Error Response Format
+
+```json
+{
+  "message": "Error description",
+  "statusCode": 400
+}
+```
+
