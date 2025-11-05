@@ -31,12 +31,18 @@ The `x-store-id` header is required for all POS endpoints. Requests without this
 
 ## Get Products
 
-GET `/pos/products`
+GET `/pos/products/:pricelistId`
 
-Retrieve a paginated list of products from a store's inventory. Supports search functionality to filter products.
+Retrieve a paginated list of products from a store's inventory filtered by price list. Supports search functionality to filter products.
 
 **Requires Authentication:** Bearer token in Authorization header  
 **Requires Header:** `x-store-id`
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `pricelistId` | string | Yes | The price list ID to filter products by |
 
 ### Query Parameters
 
@@ -111,27 +117,27 @@ Retrieve a paginated list of products from a store's inventory. Supports search 
 - `400 Bad Request`: Invalid query parameters or missing required headers
 - `401 Unauthorized`: Missing or invalid authentication token
 - `403 Forbidden`: Insufficient permissions or invalid store access
-- `404 Not Found`: Store not found
+- `404 Not Found`: Store not found or price list not found
 
 ### Example Requests
 
 **Get all products:**
 ```bash
-curl -X GET "https://jethings-backend.fly.dev/pos/products" \
+curl -X GET "https://jethings-backend.fly.dev/pos/products/YOUR_PRICELIST_ID" \
   -H "x-store-id: YOUR_STORE_ID" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 **Search products by barcode:**
 ```bash
-curl -X GET "https://jethings-backend.fly.dev/pos/products?search=B001" \
+curl -X GET "https://jethings-backend.fly.dev/pos/products/YOUR_PRICELIST_ID?search=B001" \
   -H "x-store-id: YOUR_STORE_ID" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 **Search products by name:**
 ```bash
-curl -X GET "https://jethings-backend.fly.dev/pos/products?search=Nike" \
+curl -X GET "https://jethings-backend.fly.dev/pos/products/YOUR_PRICELIST_ID?search=Nike" \
   -H "x-store-id: YOUR_STORE_ID" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
@@ -145,10 +151,16 @@ curl -X GET "https://jethings-backend.fly.dev/pos/products?search=Nike" \
 - The store ID must be valid and the user must have access to that store
 - Products from other stores are not accessible through this endpoint
 
+### Price List Filtering
+- Products are filtered by the specified price list ID in the path parameter
+- The price list ID must be valid and associated with the store
+- Product prices shown will reflect the pricing from the specified price list
+- If the price list doesn't exist or isn't associated with the store, a 404 error will be returned
+
 ### Search Functionality
 - The search parameter filters products across multiple fields (e.g., barcode, name, reference)
 - Search is case-insensitive and supports partial matching
-- If no search parameter is provided, all products in the store are returned (with pagination)
+- If no search parameter is provided, all products in the store (filtered by price list) are returned (with pagination)
 
 ### Pagination
 - Results are paginated by default
