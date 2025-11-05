@@ -43,7 +43,8 @@
         "api-reference/purchase-invoice-api",
         "api-reference/purchase-order-api",
         "api-reference/pos-api",
-        "api-reference/pos-profile-api"
+        "api-reference/pos-profile-api",
+        "api-reference/pos-session-api"
      
       ]
     }

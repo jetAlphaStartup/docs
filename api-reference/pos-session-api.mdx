@@ -1,0 +1,408 @@
+---
+title: "POS Session API"
+description: "Point of Sale Session management API for creating and managing POS sessions"
+---
+
+# POS Session API
+
+The POS Session API provides endpoints for managing POS (Point of Sale) sessions within a store. Sessions represent active work periods for POS profiles (cashiers).
+
+<Note>
+All POS Session API endpoints require authentication and a valid `x-store-id` header to identify the store context.
+</Note>
+
+## Overview
+
+Each session:
+- Belongs to one POS profile
+- Belongs to one store
+- Has an opening cash amount
+- Can only have **one active (open) session** per profile at a time
+- Sessions can be created, checked, and retrieved via these endpoints
+
+## Endpoint Details
+
+**Base URL:** `/pos-session`  
+**Content-Type:** `application/json`
+
+### Required Headers
+
+```
+Authorization: Bearer <token>
+x-store-id: <store_id>
+```
+
+<Warning>
+All routes require a valid `x-store-id` header. A profile can only have one active (open) session at a time.
+</Warning>
+
+---
+
+## Entity: POS Session
+
+| Field         | Type     | Description                           |
+| ------------- | -------- | ------------------------------------- |
+| `id`          | `string` | Unique session ID                     |
+| `openingCash` | `number` | Opening cash amount                   |
+| `posProfileId` | `string` | Associated POS profile identifier     |
+| `storeId`     | `string` | Associated store identifier           |
+| `createdAt`   | `Date`   | Creation timestamp                    |
+
+---
+
+## Create POS Session
+
+**POST** `/pos-session/create-session`
+
+Starts a new POS session for a specific profile. A profile can only have **one active (open)** session at a time.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                |
+| ------------ | -------- | -------- | ------------------------------------------ |
+| `x-store-id` | `string` | Yes      | The store ID where the session is opened   |
+
+### Request Body
+
+```json
+{
+  "profileId": "pos_profile_id_here",
+  "openningCash": 15000,
+  "password": "profile_password"
+}
+```
+
+| Field         | Type   | Required | Description                           |
+| ------------- | ------ | -------- | ------------------------------------- |
+| `profileId`   | string | Yes      | POS profile ID                        |
+| `openningCash` | number | Yes      | Opening cash amount                   |
+| `password`    | string | Yes      | Profile password for verification     |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "message": "session has been started",
+  "success": true,
+  "data": [
+    {
+      "id": "pos_opening_id",
+      "openingCash": 15000,
+      "posProfileId": "pos_profile_id_here",
+      "storeId": "store_id_here",
+      "createdAt": "2025-11-03T12:00:00.000Z"
+    }
+  ]
+}
+```
+
+### Possible Errors
+
+| Code | Message                                    |
+| ---- | ------------------------------------------ |
+| 400  | Profile not found / Missing data / Session already open |
+| 401  | Invalid password                           |
+
+### Example Request
+
+```bash
+curl -X POST "https://jethings-backend.fly.dev/pos-session/create-session" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here" \
+  -d '{
+    "profileId": "pos_profile_id_here",
+    "openningCash": 15000,
+    "password": "profile_password"
+  }'
+```
+
+---
+
+## Get Session Status by Profile
+
+**GET** `/pos-session/session-status/:profileId`
+
+Checks whether a POS profile currently has an open session.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                |
+| ------------ | -------- | -------- | ------------------------------------------ |
+| `x-store-id` | `string` | Yes      | The store ID where the session is checked  |
+
+### Path Parameters
+
+| Parameter  | Type   | Required | Description    |
+| ---------- | ------ | -------- | -------------- |
+| `profileId` | string | Yes      | POS profile ID |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+When session is open:
+
+```json
+{
+  "hasOpenSession": true,
+  "session": {
+    "id": "pos_opening_id",
+    "openingCash": 15000,
+    "posProfileId": "pos_profile_id_here",
+    "storeId": "store_id_here",
+    "createdAt": "2025-11-03T12:00:00.000Z"
+  }
+}
+```
+
+When no session is open:
+
+```json
+{
+  "hasOpenSession": false,
+  "session": null
+}
+```
+
+### Response Fields
+
+#### Response Object
+
+| Field          | Type    | Description                              |
+| -------------- | ------- | ---------------------------------------- |
+| `hasOpenSession` | boolean | Whether the profile has an active session |
+| `session`      | object  | Session object (null if no open session) |
+
+### Possible Errors
+
+| Code | Message              |
+| ---- | -------------------- |
+| 400  | Store ID is required |
+
+### Example Request
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/pos-session/session-status/pos_profile_id_here" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here"
+```
+
+---
+
+## Get Current Open Session
+
+**GET** `/pos-session/current-session/:profileId`
+
+Retrieves the currently active (open) session for a given POS profile.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                |
+| ------------ | -------- | -------- | ------------------------------------------ |
+| `x-store-id` | `string` | Yes      | The store ID where the session is located  |
+
+### Path Parameters
+
+| Parameter  | Type   | Required | Description    |
+| ---------- | ------ | -------- | -------------- |
+| `profileId` | string | Yes      | POS profile ID |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+When session exists:
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "pos_opening_id",
+    "openingCash": 15000,
+    "posProfileId": "pos_profile_id_here",
+    "storeId": "store_id_here",
+    "createdAt": "2025-11-03T12:00:00.000Z"
+  }
+}
+```
+
+When no session is open:
+
+```json
+{
+  "success": true,
+  "data": null
+}
+```
+
+### Response Fields
+
+#### Response Object
+
+| Field     | Type    | Description                              |
+| --------- | ------- | ---------------------------------------- |
+| `success` | boolean | Operation success flag                   |
+| `data`    | object  | Session object (null if no open session) |
+
+### Possible Errors
+
+| Code | Message              |
+| ---- | -------------------- |
+| 400  | Store ID is required |
+
+### Example Request
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/pos-session/current-session/pos_profile_id_here" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here"
+```
+
+---
+
+## Get All POS Profiles with Session Status
+
+**GET** `/pos-session/profiles`
+
+Returns all POS profiles in the store, with a flag indicating if each has an open session.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                |
+| ------------ | -------- | -------- | ------------------------------------------ |
+| `x-store-id` | `string` | Yes      | The store ID to retrieve profiles for      |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "profile_1",
+      "name": "Cashier 1",
+      "storeId": "store_id_here",
+      "createdAt": "2025-10-10T09:00:00.000Z",
+      "updatedAt": "2025-10-25T11:00:00.000Z",
+      "isOpened": true
+    },
+    {
+      "id": "profile_2",
+      "name": "Cashier 2",
+      "storeId": "store_id_here",
+      "createdAt": "2025-10-11T09:00:00.000Z",
+      "updatedAt": "2025-10-20T11:00:00.000Z",
+      "isOpened": false
+    }
+  ]
+}
+```
+
+### Response Fields
+
+#### Profile Object
+
+| Field       | Type    | Description                              |
+| ----------- | ------- | ---------------------------------------- |
+| `id`        | string  | Unique profile identifier                |
+| `name`      | string  | Profile name                             |
+| `storeId`   | string  | Associated store identifier              |
+| `createdAt` | string  | Creation timestamp (ISO 8601)            |
+| `updatedAt` | string  | Last update timestamp (ISO 8601)         |
+| `isOpened`  | boolean | Whether the profile has an active session |
+
+#### Response Object
+
+| Field     | Type   | Description                      |
+| --------- | ------ | -------------------------------- |
+| `success` | boolean | Operation success flag           |
+| `data`    | array  | Array of profile objects         |
+
+### Possible Errors
+
+| Code | Message              |
+| ---- | -------------------- |
+| 400  | Store ID is required |
+
+### Example Request
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/pos-session/profiles" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here"
+```
+
+---
+
+## Summary
+
+| Endpoint                                  | Method | Description                            |
+| ----------------------------------------- | ------ | -------------------------------------- |
+| `/pos-session/create-session`             | `POST` | Start a new POS session                |
+| `/pos-session/session-status/:profileId`  | `GET`  | Check if a profile has an open session |
+| `/pos-session/current-session/:profileId` | `GET`  | Get the active session for a profile   |
+| `/pos-session/profiles`                   | `GET`  | List profiles with open/closed status  |
+
+---
+
+## Security & Validation
+
+- All routes require a valid `x-store-id` header
+- Profile passwords are verified when creating sessions
+- Only one active session per profile is allowed at a time
+- Session creation requires profile password verification
+- Store ID validation prevents unauthorized access
+
+---
+
+## Business Logic
+
+### Session Creation
+- A profile can only have one active (open) session at a time
+- Opening cash amount is required and validated
+- Profile password must be verified before session creation
+- Session is automatically associated with the store from the `x-store-id` header
+
+### Session Status
+- Status checks return whether a session is currently open
+- If no session is open, the session object is null
+- Status is checked per profile within a store context
+
+### Profile Listing
+- All profiles for a store are returned with their session status
+- The `isOpened` flag indicates if each profile has an active session
+- Profiles are returned even if they have no open sessions
+
+---
+
+## Error Responses
+
+### Common Error Codes
+
+| Code | Description                               |
+| ---- | ----------------------------------------- |
+| 400  | Bad Request - Invalid input or validation |
+| 401  | Unauthorized - Invalid password           |
+
+### Error Response Format
+
+```json
+{
+  "message": "Error description",
+  "statusCode": 400
+}
+```
+
