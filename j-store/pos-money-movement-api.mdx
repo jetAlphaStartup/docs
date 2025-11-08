@@ -1,0 +1,291 @@
+---
+title: "POS Money Movement API"
+description: "Point of Sale Money Movement management API for tracking cash deposits and withdrawals within POS sessions"
+---
+
+# POS Money Movement API
+
+The POS Money Movement API provides endpoints for managing cash movements (deposits and withdrawals) within active POS sessions (openings). Money movements track all cash in/out operations during a POS session.
+
+<Note>
+All POS Money Movement API endpoints require authentication and a valid `x-store-id` header to identify the store context.
+</Note>
+
+## Overview
+
+Each money movement:
+- Belongs to one POS opening (session)
+- Has an amount and type (deposit or withdrawal)
+- Can include an optional note
+- Is timestamped for audit purposes
+- Can only be created for active (open) POS sessions
+
+## Endpoint Details
+
+**Base URL:** `/pos-money-movements`  
+**Content-Type:** `application/json`
+
+### Required Headers
+
+```
+Authorization: Bearer <token>
+x-store-id: <store_id>
+```
+
+<Warning>
+All routes require a valid `x-store-id` header. Money movements can only be created for active (open) POS sessions.
+</Warning>
+
+---
+
+## Entity: POS Money Movement
+
+| Field          | Type                      | Description                                    |
+| -------------- | ------------------------- | ---------------------------------------------- |
+| `id`           | `string`                  | Unique movement ID                             |
+| `amount`       | `number`                  | Amount of money moved                          |
+| `type`         | `"deposit" \| "withdrawal"` | Type of movement (cash in or cash out)        |
+| `posOpeningId` | `string`                  | Associated POS opening (session) identifier    |
+| `note`         | `string`                  | Optional comment or reason for the movement    |
+| `createdAt`    | `Date`                    | Creation timestamp                             |
+| `updatedAt`    | `Date`                    | Last update timestamp                          |
+
+---
+
+## Create Money Movement
+
+**POST** `/pos-money-movements`
+
+Registers a new cash movement (deposit or withdrawal) inside an active POS session (opening).
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                |
+| ------------ | -------- | -------- | ------------------------------------------ |
+| `x-store-id` | `string` | Yes      | The store ID where the movement is created |
+
+### Request Body
+
+```json
+{
+  "amount": 2500,
+  "type": "deposit",
+  "openingId": "pos_opening_id_here",
+  "note": "Cash added to drawer"
+}
+```
+
+| Field       | Type                         | Required | Description                                  |
+| ----------- | ---------------------------- | -------- | -------------------------------------------- |
+| `amount`    | `number`                     | Yes      | Amount of money moved                        |
+| `type`      | `"deposit" \| "withdrawal"`  | Yes      | Defines whether money was added or withdrawn |
+| `openingId` | `string`                     | Yes      | The POS opening ID this movement belongs to  |
+| `note`      | `string`                     | No       | Optional comment or reason                   |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "money_movement_id",
+    "amount": 2500,
+    "type": "deposit",
+    "posOpeningId": "pos_opening_id_here",
+    "note": "Cash added to drawer",
+    "createdAt": "2025-11-03T10:30:00.000Z",
+    "updatedAt": "2025-11-03T10:30:00.000Z"
+  }
+}
+```
+
+### Possible Errors
+
+| Code | Message                                              |
+| ---- | ---------------------------------------------------- |
+| 404  | POS opening with ID {openingId} not found           |
+| 400  | Opening ID missing or invalid                        |
+| 500  | POS opening is already closed and cannot accept new movements |
+
+### Example Request
+
+```bash
+curl -X POST "https://jethings-backend.fly.dev/pos-money-movements" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here" \
+  -d '{
+    "amount": 2500,
+    "type": "deposit",
+    "openingId": "pos_opening_id_here",
+    "note": "Cash added to drawer"
+  }'
+```
+
+---
+
+## Get Money Movements by POS Opening
+
+**GET** `/pos-money-movements/:openingId`
+
+Fetches all money movements linked to a specific POS opening and provides a summary with totals (cash in/out/net).
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                |
+| ------------ | -------- | -------- | ------------------------------------------ |
+| `x-store-id` | `string` | Yes      | The store ID where the opening is located  |
+
+### Path Parameters
+
+| Parameter  | Type   | Required | Description                         |
+| ---------- | ------ | -------- | ----------------------------------- |
+| `openingId` | string | Yes      | The ID of the POS opening (session) |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "success": true,
+  "data": {
+    "movements": [
+      {
+        "id": "mm_1",
+        "amount": 2500,
+        "type": "deposit",
+        "posOpeningId": "pos_opening_id_here",
+        "note": "Initial cash",
+        "createdAt": "2025-11-03T09:30:00.000Z",
+        "updatedAt": "2025-11-03T09:30:00.000Z"
+      },
+      {
+        "id": "mm_2",
+        "amount": 500,
+        "type": "withdrawal",
+        "posOpeningId": "pos_opening_id_here",
+        "note": "Paid for delivery",
+        "createdAt": "2025-11-03T10:00:00.000Z",
+        "updatedAt": "2025-11-03T10:00:00.000Z"
+      }
+    ],
+    "summary": {
+      "totalMovements": 2,
+      "totalIn": 2500,
+      "totalOut": 500,
+      "netAmount": 2000
+    }
+  }
+}
+```
+
+### Response Fields
+
+#### Movements Array
+
+| Field          | Type                      | Description                                    |
+| -------------- | ------------------------- | ---------------------------------------------- |
+| `id`           | `string`                  | Unique movement ID                             |
+| `amount`       | `number`                  | Amount of money moved                          |
+| `type`         | `"deposit" \| "withdrawal"` | Type of movement                               |
+| `posOpeningId` | `string`                  | Associated POS opening identifier              |
+| `note`         | `string`                  | Optional comment or reason                     |
+| `createdAt`    | `string`                  | Creation timestamp (ISO 8601)                  |
+| `updatedAt`    | `string`                  | Last update timestamp (ISO 8601)               |
+
+#### Summary Object
+
+| Field            | Type     | Description                                    |
+| ---------------- | -------- | ---------------------------------------------- |
+| `totalMovements` | `number` | Total number of movements for this opening     |
+| `totalIn`        | `number` | Sum of all deposit amounts                     |
+| `totalOut`       | `number` | Sum of all withdrawal amounts                  |
+| `netAmount`      | `number` | Net amount (totalIn - totalOut)                |
+
+### Possible Errors
+
+| Code | Message                         |
+| ---- | ------------------------------- |
+| 404  | POS opening with ID {openingId} not found |
+| 500  | Failed to fetch money movements |
+
+### Example Request
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/pos-money-movements/pos_opening_id_here" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here"
+```
+
+---
+
+## Summary
+
+| Endpoint                          | Method | Description                                       |
+| --------------------------------- | ------ | ------------------------------------------------- |
+| `/pos-money-movements`            | `POST` | Create a new deposit or withdrawal                |
+| `/pos-money-movements/:openingId` | `GET`  | List all movements for a POS opening with summary |
+
+---
+
+## Security & Validation
+
+- All routes require a valid `x-store-id` header
+- Money movements can only be created for active (open) POS sessions
+- POS opening must exist and be validated before creating movements
+- Closed POS sessions cannot accept new money movements
+- Store ID validation prevents unauthorized access
+
+---
+
+## Business Logic
+
+### Money Movement Creation
+- POS opening must exist and be active (not closed)
+- Amount must be a positive number
+- Type must be either "deposit" or "withdrawal"
+- Movements are automatically timestamped
+- Note field is optional
+
+### Movement Retrieval
+- Returns all movements for a specific POS opening
+- Movements are ordered by creation date (oldest first)
+- Summary automatically calculates:
+  - Total number of movements
+  - Total deposits (cash in)
+  - Total withdrawals (cash out)
+  - Net amount (deposits - withdrawals)
+
+### Validation Rules
+- Cannot create movements for non-existent POS openings
+- Cannot create movements for closed POS sessions
+- All movements are permanently recorded for audit purposes
+
+---
+
+## Error Responses
+
+### Common Error Codes
+
+| Code | Description                               |
+| ---- | ----------------------------------------- |
+| 400  | Bad Request - Invalid input or validation |
+| 404  | Not Found - POS opening doesn't exist     |
+| 500  | Internal Server Error - Database or server error |
+
+### Error Response Format
+
+```json
+{
+  "message": "Error description",
+  "statusCode": 404
+}
+```
+

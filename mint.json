@@ -1,18 +1,18 @@
 {
   "$schema": "https://mintlify.com/schema.json",
-  "name": "Jthings",
+  "name": "j-store",
   "logo": {
     "dark": "/logo/dark.svg",
     "light": "/logo/light.svg"
   },
   "favicon": "/images/eye.png",
   "colors": {
-    "primary": "#3B82F6",
-    "light": "#60A5FA",
-    "dark": "#1D4ED8",
+    "primary": "#45ACAB",
+    "light": "#6BC5C4",
+    "dark": "#2E7A79",
     "anchors": {
-      "from": "#3B82F6",
-      "to": "#1D4ED8"
+      "from": "#45ACAB",
+      "to": "#2E7A79"
     }
   },
 
@@ -22,8 +22,8 @@
   },
   "tabs": [
     {
-      "name": "API Reference",
-      "url": "api-reference"
+      "name": "j-store",
+      "url": "j-store"
     }
    
   ],
@@ -34,17 +34,18 @@
       "group": "API Documentation",
       "pages": [
       
-        "api-reference/auth-api",
-        "api-reference/users-api",
-        "api-reference/app-config-api",
-        "api-reference/stores-api",
-        "api-reference/price-list-api",
-        "api-reference/item-price-api",
-        "api-reference/purchase-invoice-api",
-        "api-reference/purchase-order-api",
-        "api-reference/pos-api",
-        "api-reference/pos-profile-api",
-        "api-reference/pos-session-api"
+        "j-store/auth-api",
+        "j-store/users-api",
+        "j-store/app-config-api",
+        "j-store/stores-api",
+        "j-store/price-list-api",
+        "j-store/item-price-api",
+        "j-store/purchase-invoice-api",
+        "j-store/purchase-order-api",
+        "j-store/pos-api",
+        "j-store/pos-profile-api",
+        "j-store/pos-session-api",
+        "j-store/pos-money-movement-api"
      
       ]
     }
