@@ -288,48 +288,32 @@ Returns all POS profiles in the store, with a flag indicating if each has an ope
 **Status Code:** `200 OK`
 
 ```json
-{
-  "success": true,
-  "data": [
+[
     {
-      "id": "profile_1",
-      "name": "Cashier 1",
-      "storeId": "store_id_here",
-      "createdAt": "2025-10-10T09:00:00.000Z",
-      "updatedAt": "2025-10-25T11:00:00.000Z",
-      "isOpened": true
-    },
-    {
-      "id": "profile_2",
-      "name": "Cashier 2",
-      "storeId": "store_id_here",
-      "createdAt": "2025-10-11T09:00:00.000Z",
-      "updatedAt": "2025-10-20T11:00:00.000Z",
-      "isOpened": false
+        "id": "kilocapkh37c3vj4g5pg6xqr",
+        "storeId": "xft1hhwk51bsybiyi2xs9lk3",
+        "name": "abdellah",
+        "createdAt": "2025-11-03T15:42:55.185Z",
+        "updatedAt": "2025-11-03T15:42:55.185Z",
+        "openSessionId": "c3ltew83cw90z3xabifrnybm",
+        "isOpened": true
     }
-  ]
-}
+]
 ```
 
 ### Response Fields
 
 #### Profile Object
 
-| Field       | Type    | Description                              |
-| ----------- | ------- | ---------------------------------------- |
-| `id`        | string  | Unique profile identifier                |
-| `name`      | string  | Profile name                             |
-| `storeId`   | string  | Associated store identifier              |
-| `createdAt` | string  | Creation timestamp (ISO 8601)            |
-| `updatedAt` | string  | Last update timestamp (ISO 8601)         |
-| `isOpened`  | boolean | Whether the profile has an active session |
-
-#### Response Object
-
-| Field     | Type   | Description                      |
-| --------- | ------ | -------------------------------- |
-| `success` | boolean | Operation success flag           |
-| `data`    | array  | Array of profile objects         |
+| Field          | Type    | Description                              |
+| -------------- | ------- | ---------------------------------------- |
+| `id`           | string  | Unique profile identifier                |
+| `name`         | string  | Profile name                             |
+| `storeId`      | string  | Associated store identifier              |
+| `createdAt`    | string  | Creation timestamp (ISO 8601)            |
+| `updatedAt`    | string  | Last update timestamp (ISO 8601)         |
+| `openSessionId`| string  | ID of the open session (if any)          |
+| `isOpened`     | boolean | Whether the profile has an active session |
 
 ### Possible Errors
 
