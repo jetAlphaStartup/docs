@@ -1,0 +1,577 @@
+---
+title: "Customer API"
+description: "Customer management API for retrieving and managing customer data linked to stores"
+---
+
+# Customer API
+
+The Customer API provides endpoints for retrieving paginated lists of customers linked to stores that the authenticated user has access to.
+
+<Note>
+All Customer API endpoints require authentication and a valid `x-store-id` header to identify the store context.
+</Note>
+
+## Overview
+
+Customers can be:
+- Linked to a store (created automatically when a store is created)
+- Linked to a user account (created when a user signs up)
+- Created manually with a local name and optional default price list
+- Assigned or updated with a default price list
+- Filtered and sorted by various criteria
+- Retrieved in paginated lists
+
+## Endpoint Details
+
+**Base URL:** `/customers`  
+**Content-Type:** `application/json`
+
+### Required Headers
+
+```
+Authorization: Bearer <token>
+x-store-id: <store_id>
+```
+
+<Warning>
+All routes require a valid `x-store-id` header. Users must have an active relation with the store to access its customers.
+</Warning>
+
+---
+
+## Get Customers
+
+**GET** `/customers`
+
+Retrieve a paginated list of customers linked to a store that the authenticated user has access to.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                |
+| ------------ | -------- | -------- | ------------------------------------------ |
+| `x-store-id` | `string` | Yes      | Store identifier (used by `@StoreId()` decorator) |
+
+### Query Parameters
+
+| Parameter  | Type      | Required | Description                                               | Default     |
+| ---------- | --------- | -------- | --------------------------------------------------------- | ----------- |
+| `search`   | `string`  | No       | Filter customers by name (partial match)                  | —           |
+| `name`     | `string`  | No       | Filter customers by exact or partial name                 | —           |
+| `isActive` | `boolean` | No       | Filter by active/inactive status                          | —           |
+| `page`     | `number`  | No       | Page number (1-based)                                     | `1`         |
+| `limit`    | `number`  | No       | Number of items per page (1–100)                          | `10`        |
+| `sortBy`   | `string`  | No       | Sort field (`name`, `isActive`, `updatedAt`, `createdAt`) | `createdAt` |
+| `sortOrder`| `string`  | No       | Sort direction (`asc` or `desc`)                          | `desc`      |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "data": [
+    {
+      "id": "cst_12345",
+      "name": "Abdellah Chehri",
+      "userId": "usr_789",
+      "isActive": true,
+      "createdAt": "2025-11-03T10:00:00.000Z",
+      "updatedAt": "2025-11-03T10:30:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 12,
+    "totalPages": 2,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
+
+### Response Fields
+
+#### Customer Object
+
+| Field               | Type      | Description                          |
+| ------------------- | --------- | ------------------------------------ |
+| `id`                | `string`  | Unique customer ID                   |
+| `name`              | `string`  | Customer display name                |
+| `localName`         | `string?` | Local name of the customer (if set)  |
+| `defaultPriceListId`| `string?` | Default price list ID (if assigned)  |
+| `userId`            | `string?` | Related user ID (if created by user) |
+| `isActive`          | `boolean` | Active status of customer            |
+| `createdAt`         | `string`  | Creation timestamp (ISO 8601)        |
+| `updatedAt`         | `string`  | Last update timestamp (ISO 8601)     |
+
+#### Pagination Object
+
+| Field        | Type      | Description                    |
+| ------------ | --------- | ------------------------------ |
+| `page`       | `number`  | Current page number            |
+| `limit`      | `number`  | Number of items per page       |
+| `total`      | `number`  | Total number of records        |
+| `totalPages` | `number`  | Total pages available          |
+| `hasNext`    | `boolean` | Whether a next page exists     |
+| `hasPrev`    | `boolean` | Whether a previous page exists |
+
+### Possible Errors
+
+| Code | Message                                    |
+| ---- | ------------------------------------------ |
+| 400  | Bad Request - Invalid query params or validation errors |
+| 403  | Forbidden - User does not have access to this store |
+| 500  | Internal Server Error - Failed to fetch customers |
+
+### Example Requests
+
+Get all customers with default pagination:
+```bash
+curl -X GET "https://jethings-backend.fly.dev/customers" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here"
+```
+
+Search customers by name:
+```bash
+curl -X GET "https://jethings-backend.fly.dev/customers?search=john&page=1&limit=10&sortBy=name&sortOrder=asc" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here"
+```
+
+Filter by active status:
+```bash
+curl -X GET "https://jethings-backend.fly.dev/customers?isActive=true&page=1&limit=20" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here"
+```
+
+Filter by exact name:
+```bash
+curl -X GET "https://jethings-backend.fly.dev/customers?name=John%20Doe" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here"
+```
+
+---
+
+## Create Customer
+
+**POST** `/customers`
+
+Create a new customer and link them to the current store. You can optionally assign a default price list.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                |
+| ------------ | -------- | -------- | ------------------------------------------ |
+| `x-store-id` | `string` | Yes      | Store identifier (used by `@StoreId()` decorator) |
+
+### Request Body
+
+```json
+{
+  "localName": "Ali's Boutique",
+  "defaultPriceListId": "pl_abc123"
+}
+```
+
+### Request Body Fields
+
+| Field                | Type          | Required | Description                      |
+| -------------------- | ------------- | -------- | -------------------------------- |
+| `localName`          | `string`      | Yes      | The local name of the customer   |
+| `defaultPriceListId` | `string` (UUID) | No      | Optional price list ID to assign |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "customer": {
+    "id": "cst_abc123",
+    "localName": "Ali's Boutique",
+    "defaultPriceListId": "pl_abc123",
+    "isActive": true,
+    "createdAt": "2025-11-03T10:00:00.000Z",
+    "updatedAt": "2025-11-03T10:00:00.000Z"
+  },
+  "customerStore": {
+    "id": "csr_987",
+    "customerId": "cst_abc123",
+    "storeId": "str_12345",
+    "createdAt": "2025-11-03T10:00:00.000Z"
+  }
+}
+```
+
+### Response Fields
+
+#### Customer Object
+
+| Field                | Type      | Description                          |
+| -------------------- | --------- | ------------------------------------ |
+| `id`                 | `string`  | Unique customer ID                   |
+| `localName`          | `string`  | Local name of the customer           |
+| `defaultPriceListId` | `string?` | Default price list ID (if assigned)  |
+| `isActive`           | `boolean` | Active status of customer            |
+| `createdAt`          | `string`  | Creation timestamp (ISO 8601)        |
+| `updatedAt`          | `string`  | Last update timestamp (ISO 8601)     |
+
+#### CustomerStore Object
+
+| Field       | Type     | Description                          |
+| ----------- | -------- | ------------------------------------ |
+| `id`        | `string` | Unique customer-store relation ID    |
+| `customerId`| `string` | Customer ID                          |
+| `storeId`   | `string` | Store ID                             |
+| `createdAt` | `string` | Creation timestamp (ISO 8601)        |
+
+### Possible Errors
+
+| Code | Message                                    |
+| ---- | ------------------------------------------ |
+| 400  | Bad Request - Invalid request data or validation errors |
+| 403  | Forbidden - User does not have access to this store |
+| 404  | Not Found - Price list not found (if defaultPriceListId provided) |
+| 500  | Internal Server Error - Failed to create customer |
+
+### Example Request
+
+```bash
+curl -X POST "https://jethings-backend.fly.dev/customers" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here" \
+  -d '{
+    "localName": "Ali'\''s Boutique",
+    "defaultPriceListId": "pl_abc123"
+  }'
+```
+
+Create customer without price list:
+```bash
+curl -X POST "https://jethings-backend.fly.dev/customers" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here" \
+  -d '{
+    "localName": "New Customer"
+  }'
+```
+
+---
+
+## Set Customer Price List
+
+**PUT** `/customers/:customerId/price-list`
+
+Assign or update the default price list of a customer.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                |
+| ------------ | -------- | -------- | ------------------------------------------ |
+| `x-store-id` | `string` | Yes      | Store identifier (used by `@StoreId()` decorator) |
+
+### Path Parameters
+
+| Parameter   | Type     | Required | Description                         |
+| ----------- | -------- | -------- | ----------------------------------- |
+| `customerId`| `string` | Yes      | The ID of the customer              |
+
+### Request Body
+
+```json
+{
+  "priceListId": "pl_789xyz"
+}
+```
+
+### Request Body Fields
+
+| Field         | Type          | Required | Description                                  |
+| ------------- | ------------- | -------- | -------------------------------------------- |
+| `priceListId` | `string` (UUID) | Yes      | The price list ID to assign to this customer |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Customer price list has been updated",
+  "customer": {
+    "id": "cst_abc123",
+    "localName": "Ali's Boutique",
+    "defaultPriceListId": "pl_789xyz",
+    "isActive": true,
+    "updatedAt": "2025-11-03T11:00:00.000Z"
+  }
+}
+```
+
+### Response Fields
+
+| Field                | Type      | Description                          |
+| -------------------- | --------- | ------------------------------------ |
+| `success`            | `boolean` | Operation success status             |
+| `message`            | `string`  | Success message                      |
+| `customer`           | `object`  | Updated customer object              |
+| `customer.id`        | `string`  | Unique customer ID                   |
+| `customer.localName` | `string`  | Local name of the customer           |
+| `customer.defaultPriceListId` | `string?` | Default price list ID (if assigned)  |
+| `customer.isActive`  | `boolean` | Active status of customer            |
+| `customer.updatedAt` | `string`  | Last update timestamp (ISO 8601)     |
+
+### Possible Errors
+
+| Code | Message                                    |
+| ---- | ------------------------------------------ |
+| 400  | Bad Request - Invalid request data or validation errors |
+| 403  | Forbidden - User does not have access to this store |
+| 404  | Not Found - Customer or price list not found |
+| 500  | Internal Server Error - Failed to update customer price list |
+
+### Example Request
+
+```bash
+curl -X PUT "https://jethings-backend.fly.dev/customers/cst_abc123/price-list" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here" \
+  -d '{
+    "priceListId": "pl_789xyz"
+  }'
+```
+
+---
+
+## Remove Customer Price List
+
+**DELETE** `/customers/:customerId/price-list`
+
+Remove the default price list from a customer.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                |
+| ------------ | -------- | -------- | ------------------------------------------ |
+| `x-store-id` | `string` | Yes      | Store identifier (used by `@StoreId()` decorator) |
+
+### Path Parameters
+
+| Parameter   | Type     | Required | Description                         |
+| ----------- | -------- | -------- | ----------------------------------- |
+| `customerId`| `string` | Yes      | The ID of the customer              |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Customer price list has been removed",
+  "customer": {
+    "id": "cst_abc123",
+    "localName": "Ali's Boutique",
+    "defaultPriceListId": null,
+    "isActive": true,
+    "updatedAt": "2025-11-03T11:15:00.000Z"
+  }
+}
+```
+
+### Response Fields
+
+| Field                | Type      | Description                          |
+| -------------------- | --------- | ------------------------------------ |
+| `success`            | `boolean` | Operation success status             |
+| `message`            | `string`  | Success message                      |
+| `customer`           | `object`  | Updated customer object              |
+| `customer.id`        | `string`  | Unique customer ID                   |
+| `customer.localName` | `string`  | Local name of the customer           |
+| `customer.defaultPriceListId` | `null` | Price list removed (set to null)     |
+| `customer.isActive`  | `boolean` | Active status of customer            |
+| `customer.updatedAt` | `string`  | Last update timestamp (ISO 8601)     |
+
+### Possible Errors
+
+| Code | Message                                    |
+| ---- | ------------------------------------------ |
+| 403  | Forbidden - User does not have access to this store |
+| 404  | Not Found - Customer not found             |
+| 500  | Internal Server Error - Failed to remove customer price list |
+
+### Example Request
+
+```bash
+curl -X DELETE "https://jethings-backend.fly.dev/customers/cst_abc123/price-list" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here"
+```
+
+---
+
+## Data Models
+
+### CustomerResponseDto
+
+| Field                | Type      | Description                          |
+| -------------------- | --------- | ------------------------------------ |
+| `id`                 | `string`  | Unique customer ID                   |
+| `name`               | `string`  | Customer display name                |
+| `localName`          | `string?` | Local name of the customer (if set)  |
+| `defaultPriceListId` | `string?` | Default price list ID (if assigned)  |
+| `userId`             | `string?` | Related user ID (if created by user) |
+| `isActive`           | `boolean` | Active status of customer            |
+| `createdAt`          | `Date`    | Creation timestamp                   |
+| `updatedAt`          | `Date`    | Last update timestamp                |
+
+### PaginationDto
+
+| Field        | Type      | Description                    |
+| ------------ | --------- | ------------------------------ |
+| `page`       | `number`  | Current page number            |
+| `limit`      | `number`  | Number of items per page       |
+| `total`      | `number`  | Total number of records        |
+| `totalPages` | `number`  | Total pages available          |
+| `hasNext`    | `boolean` | Whether a next page exists     |
+| `hasPrev`    | `boolean` | Whether a previous page exists |
+
+### PaginatedCustomersResponseDto
+
+```typescript
+{
+  data: CustomerResponseDto[];
+  pagination: PaginationDto;
+}
+```
+
+---
+
+## Summary
+
+| Endpoint                                    | Method   | Description                                    |
+| ------------------------------------------- | -------- | ---------------------------------------------- |
+| `/customers`                                | `GET`    | Retrieve paginated list of customers for a store |
+| `/customers`                                | `POST`   | Create a new customer and link to store        |
+| `/customers/:customerId/price-list`         | `PUT`    | Assign or update customer's default price list |
+| `/customers/:customerId/price-list`         | `DELETE` | Remove customer's default price list           |
+
+---
+
+## Security & Validation
+
+- All routes require a valid `x-store-id` header
+- User must have an active relation with the store to access its customers
+- Store ID validation prevents unauthorized access
+- Pagination limits are enforced (max 100 items per page)
+
+---
+
+## Business Logic
+
+### Customer Creation
+
+- Customers can be created manually via POST `/customers` with a `localName`
+- When creating a customer, you can optionally assign a `defaultPriceListId`
+- Creating a customer automatically creates a `CustomerStore` relation linking the customer to the store
+- The price list must exist and be active if provided
+
+### Customer Price List Management
+
+- Customers can have a default price list assigned via PUT `/customers/:customerId/price-list`
+- The price list must exist and be active (verified by `verifyPriceList()`)
+- Price lists can be removed via DELETE `/customers/:customerId/price-list`
+- Removing a price list sets `defaultPriceListId` to `null`
+
+### Customer Retrieval
+
+- Returns paginated lists of customers for a specific store
+- Supports filtering by name (exact or partial match) and active status
+- Supports sorting by name, isActive, updatedAt, or createdAt
+- Default sorting is by createdAt in descending order (newest first)
+- Pagination is 1-based (first page is page 1)
+
+### Internal Methods
+
+These methods are part of the internal business logic and are not exposed as public endpoints:
+
+| Method                                                | Purpose                                          |
+| ----------------------------------------------------- | ------------------------------------------------ |
+| `verifyPriceList()`                                   | Checks if a price list exists and is active      |
+| `createCustomerFromStore(storeId, storeName)`         | Auto-creates customer entities for new stores    |
+| `createCustomerFromUser(userId, firstName, lastName)` | Creates a customer linked to a user account      |
+| `getCustomerByUserId(userId)`                         | Fetches the customer record for a specific user  |
+| `getCustomerByStoreId(storeId)`                       | Returns the customer representing a store        |
+
+### Validation Rules
+
+- Page number must be >= 1
+- Limit must be between 1 and 100
+- SortBy must be one of: `name`, `isActive`, `updatedAt`, `createdAt`
+- SortOrder must be either `asc` or `desc`
+- User must have access to the specified store
+- `localName` is required when creating a customer
+- `priceListId` must be a valid UUID and reference an existing, active price list
+
+---
+
+## Error Responses
+
+### Common Error Codes
+
+| Code | Description                               |
+| ---- | ----------------------------------------- |
+| 400  | Bad Request - Invalid input or validation |
+| 403  | Forbidden - User does not have access to this store |
+| 500  | Internal Server Error - Database or server error |
+
+### Error Response Format
+
+```json
+{
+  "message": "Error description",
+  "statusCode": 400
+}
+```
+
+### Example Error Responses
+
+**403 Forbidden:**
+```json
+{
+  "message": "You do not have access to this store",
+  "statusCode": 403
+}
+```
+
+**400 Bad Request:**
+```json
+{
+  "message": "Invalid page number",
+  "statusCode": 400
+}
+```
+
+**500 Internal Server Error:**
+```json
+{
+  "message": "Failed to fetch customers",
+  "statusCode": 500
+}
+```
+

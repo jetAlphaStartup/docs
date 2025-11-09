@@ -38,6 +38,7 @@
         "j-store/users-api",
         "j-store/app-config-api",
         "j-store/stores-api",
+        "j-store/customers-api",
         "j-store/price-list-api",
         "j-store/item-price-api",
         "j-store/purchase-invoice-api",
