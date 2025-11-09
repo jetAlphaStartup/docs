@@ -272,7 +272,7 @@ curl -X POST "https://jethings-backend.fly.dev/customers" \
 
 **PUT** `/customers/:customerId/price-list`
 
-Assign or update the default price list of a customer.
+Assign or update the default price list of a customer. Optionally update the customer's name at the same time.
 
 **Requires Authentication:** Bearer token in Authorization header
 
@@ -292,7 +292,8 @@ Assign or update the default price list of a customer.
 
 ```json
 {
-  "priceListId": "pl_789xyz"
+  "priceListId": "pl_789xyz",
+  "name": "Updated Customer Name"
 }
 ```
 
@@ -301,6 +302,7 @@ Assign or update the default price list of a customer.
 | Field         | Type          | Required | Description                                  |
 | ------------- | ------------- | -------- | -------------------------------------------- |
 | `priceListId` | `string` (UUID) | Yes      | The price list ID to assign to this customer |
+| `name`        | `string`      | No       | Optional name to update for the customer     |
 
 ### Success Response
 
@@ -342,8 +344,9 @@ Assign or update the default price list of a customer.
 | 404  | Not Found - Customer or price list not found |
 | 500  | Internal Server Error - Failed to update customer price list |
 
-### Example Request
+### Example Requests
 
+Set price list only:
 ```bash
 curl -X PUT "https://jethings-backend.fly.dev/customers/cst_abc123/price-list" \
   -H "Content-Type: application/json" \
@@ -351,6 +354,18 @@ curl -X PUT "https://jethings-backend.fly.dev/customers/cst_abc123/price-list" \
   -H "x-store-id: store_id_here" \
   -d '{
     "priceListId": "pl_789xyz"
+  }'
+```
+
+Set price list with customer name update:
+```bash
+curl -X PUT "https://jethings-backend.fly.dev/customers/cst_abc123/price-list" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here" \
+  -d '{
+    "priceListId": "pl_789xyz",
+    "name": "Updated Customer Name"
   }'
 ```
 
@@ -495,6 +510,7 @@ curl -X DELETE "https://jethings-backend.fly.dev/customers/cst_abc123/price-list
 
 - Customers can have a default price list assigned via PUT `/customers/:customerId/price-list`
 - The price list must exist and be active (verified by `verifyPriceList()`)
+- Optionally, you can update the customer's name when setting the price list by including the `name` field in the request
 - Price lists can be removed via DELETE `/customers/:customerId/price-list`
 - Removing a price list sets `defaultPriceListId` to `null`
 
