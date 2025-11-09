@@ -46,7 +46,9 @@ All routes require a valid `x-store-id` header. A profile can only have one acti
 | `openingCash` | `number` | Opening cash amount                   |
 | `posProfileId` | `string` | Associated POS profile identifier     |
 | `storeId`     | `string` | Associated store identifier           |
+| `posClosingId` | `string \| null` | Associated closing session ID (null if not closed) |
 | `createdAt`   | `Date`   | Creation timestamp                    |
+| `updatedAt`   | `Date`   | Last update timestamp                 |
 
 ---
 
@@ -86,19 +88,45 @@ Starts a new POS session for a specific profile. A profile can only have **one a
 
 ```json
 {
-  "message": "session has been started",
-  "success": true,
-  "data": [
-    {
-      "id": "pos_opening_id",
-      "openingCash": 15000,
-      "posProfileId": "pos_profile_id_here",
-      "storeId": "store_id_here",
-      "createdAt": "2025-11-03T12:00:00.000Z"
-    }
-  ]
+    "message": "session has been started",
+    "success": true,
+    "data": [
+        {
+            "id": "fpj8x9d9od0yiiik2tj5a7sj",
+            "posProfileId": "zty59yo3tsz0uv5tacg1i5my",
+            "storeId": "y2hmpq2zomqgbycqkuyc2usy",
+            "openingCash": 5000,
+            "posClosingId": null,
+            "createdAt": "2025-11-08T14:02:37.527Z",
+            "updatedAt": "2025-11-08T14:02:37.527Z"
+        }
+    ],
+    "hashedPassword": "$2b$10$IFYcfGRzWWbYObdKbBcdc..pKe6SBqMNPwa51AWW7Mn3PCTIHU07C"
 }
 ```
+
+### Response Fields
+
+#### Response Object
+
+| Field          | Type    | Description                              |
+| -------------- | ------- | ---------------------------------------- |
+| `message`      | string  | Success message                          |
+| `success`      | boolean | Operation success flag                   |
+| `data`         | array   | Array containing the created session object |
+| `hashedPassword` | string | Hashed password (for reference)          |
+
+#### Session Object (in data array)
+
+| Field          | Type    | Description                              |
+| -------------- | ------- | ---------------------------------------- |
+| `id`           | string  | Unique session identifier                |
+| `posProfileId` | string  | Associated POS profile identifier        |
+| `storeId`      | string  | Associated store identifier              |
+| `openingCash`  | number  | Opening cash amount                      |
+| `posClosingId` | string \| null | Associated closing session ID (null if not closed) |
+| `createdAt`    | string  | Creation timestamp (ISO 8601)            |
+| `updatedAt`    | string  | Last update timestamp (ISO 8601)         |
 
 ### Possible Errors
 
