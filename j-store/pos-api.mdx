@@ -13,7 +13,7 @@ All POS API endpoints require the `x-store-id` header to identify which store's 
 
 ## Endpoint Details
 
-**Base URL:** `https://jethings-backend.fly.dev`  
+**Base URL:** `http://localhost:3000`  
 **Content-Type:** `application/json`
 
 ### Required Headers
@@ -31,18 +31,12 @@ The `x-store-id` header is required for all POS endpoints. Requests without this
 
 ## Get Products
 
-GET `/pos/products/:pricelistId`
+GET `/pos/products`
 
-Retrieve a paginated list of products from a store's inventory filtered by price list. Supports search functionality to filter products.
+Retrieve a paginated list of products from a store's inventory. Each product includes all available prices across price lists. Supports search functionality to filter products.
 
 **Requires Authentication:** Bearer token in Authorization header  
 **Requires Header:** `x-store-id`
-
-### Path Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `pricelistId` | string | Yes | The price list ID to filter products by |
 
 ### Query Parameters
 
@@ -58,30 +52,234 @@ Retrieve a paginated list of products from a store's inventory filtered by price
 {
   "data": [
     {
-      "name": "null",
-      "image": "https://abdellah.b-cdn.net/products/items/nc0kzztvw8k0navwc6i3juuk/1761828362970_H0t0sJZopuiOsQtqp4euPrdkBZvTg4r21135F720.jpg",
+      "name": "jjjj",
+      "image": "https://abdellah.b-cdn.net/products/items/tzis6p7gi3f5q91xtct0u4au/1761827324350_Mens_FW25_CasualSneakers.jpg",
       "quantity": 49,
-      "price": 0,
-      "createdAt": "2025-10-30T12:46:02.628Z",
-      "updatedAt": "2025-10-30T12:46:02.628Z",
-      "id": "cukh3liez2g9mzsk5ucqgyl3"
+      "prices": [],
+      "createdAt": "2025-10-30T12:28:41.747Z",
+      "updatedAt": "2025-10-30T12:28:41.747Z",
+      "id": "nrabg76ezxvwnd749r7etafd"
+    },
+    {
+      "name": "jjjj",
+      "image": "https://abdellah.b-cdn.net/products/items/hgmc3gar2nsiecfsgtpjutvt/1761827322049_H0t0sJZopuiOsQtqp4euPrdkBZvTg4r21135F720.jpg",
+      "quantity": 49,
+      "prices": [],
+      "createdAt": "2025-10-30T12:28:41.747Z",
+      "updatedAt": "2025-10-30T12:28:41.747Z",
+      "id": "wh8zubjozc9ekx78yduntv4w"
+    },
+    {
+      "name": "Midnight Black",
+      "image": "https://abdellah.b-cdn.net/products/items/j92cmqkko4ljoe2ha8nwde9f/1762004747826_Mens_FW25_CasualSneakers.jpg",
+      "quantity": 10,
+      "prices": [
+        {
+          "priceListId": "crvd4jeb31gznu4qzs4t1k8a",
+          "priceListName": "abdellah price",
+          "price": 12500
+        }
+      ],
+      "createdAt": "2025-11-01T13:45:43.879Z",
+      "updatedAt": "2025-11-01T13:45:43.879Z",
+      "id": "bm4r529seyhh21446upri0m2"
+    },
+    {
+      "name": "Stone Grey",
+      "image": "https://abdellah.b-cdn.net/products/items/bht3aspmzo2cg3kkhxzirf99/1762004745945_H0t0sJZopuiOsQtqp4euPrdkBZvTg4r21135F720.jpg",
+      "quantity": 8,
+      "prices": [
+        {
+          "priceListId": "crvd4jeb31gznu4qzs4t1k8a",
+          "priceListName": "abdellah price",
+          "price": 10800
+        }
+      ],
+      "createdAt": "2025-11-01T13:45:43.879Z",
+      "updatedAt": "2025-11-01T13:45:43.879Z",
+      "id": "k6kcxaoyjf0poqv4vv9tgiwe"
     },
     {
       "name": "Nike one",
       "image": "https://abdellah.b-cdn.net/products/items/h9twtvzikih4mrqng29apcyw/1761832047401_H0t0sJZopuiOsQtqp4euPrdkBZvTg4r21135F720.jpg",
       "quantity": 55,
-      "price": 0,
+      "prices": [],
       "createdAt": "2025-10-30T13:47:26.896Z",
       "updatedAt": "2025-10-30T13:47:26.896Z",
       "id": "t191h7axvurl5k0t17m63n3d"
+    },
+    {
+      "name": "Sand Beige",
+      "image": "https://abdellah.b-cdn.net/products/items/fp471iit18jprgbtxsdj8shx/1762004752375_H0t0sJZopuiOsQtqp4euPrdkBZvTg4r21135F720.jpg",
+      "quantity": 7,
+      "prices": [
+        {
+          "priceListId": "crvd4jeb31gznu4qzs4t1k8a",
+          "priceListName": "abdellah price",
+          "price": 11000
+        }
+      ],
+      "createdAt": "2025-11-01T13:45:43.879Z",
+      "updatedAt": "2025-11-01T13:45:43.879Z",
+      "id": "k03rz7w1wp9xy3ztkb3d7vkn"
+    },
+    {
+      "name": "Sky Fade",
+      "image": "https://abdellah.b-cdn.net/products/items/iw05v14ismfow4dqnyw8hkqn/1762004753778_Mens_FW25_CasualSneakers.jpg",
+      "quantity": 11,
+      "prices": [
+        {
+          "priceListId": "crvd4jeb31gznu4qzs4t1k8a",
+          "priceListName": "abdellah price",
+          "price": 11300
+        }
+      ],
+      "createdAt": "2025-11-01T13:45:43.879Z",
+      "updatedAt": "2025-11-01T13:45:43.879Z",
+      "id": "pl6pl3dlwzbzrqpb1okkyksy"
+    },
+    {
+      "name": "Ash White",
+      "image": "https://abdellah.b-cdn.net/products/items/xsj3wnt41e6ddjb8ox4x2w6q/1762004757040_Mens_FW25_CasualSneakers.jpg",
+      "quantity": 10,
+      "prices": [
+        {
+          "priceListId": "crvd4jeb31gznu4qzs4t1k8a",
+          "priceListName": "abdellah price",
+          "price": 10500
+        }
+      ],
+      "createdAt": "2025-11-01T13:45:43.879Z",
+      "updatedAt": "2025-11-01T13:45:43.879Z",
+      "id": "kr3uxgc4hbmm528f77twjhmr"
+    },
+    {
+      "name": "Nike two",
+      "image": "https://abdellah.b-cdn.net/products/items/jmyr6vxi30rc8aqiu3gn7s6e/1762163947336_Mens_FW25_CasualSneakers.jpg",
+      "quantity": 6,
+      "prices": [],
+      "createdAt": "2025-11-03T09:59:07.246Z",
+      "updatedAt": "2025-11-03T09:59:07.246Z",
+      "id": "xg6gn50a1n1bmzyvb77eg0w0"
+    },
+    {
+      "name": "Nike two",
+      "image": "https://abdellahpull.b-cdn.net/products/items/r6luqkcanybgiprjoj0yinf7/1762600773063_Mens_FW25_CasualSneakers.jpg",
+      "quantity": 6,
+      "prices": [],
+      "createdAt": "2025-11-08T11:19:33.009Z",
+      "updatedAt": "2025-11-08T11:19:33.009Z",
+      "id": "yljahguowdl26qpddp740nv7"
+    },
+    {
+      "name": "Charcoal Fade",
+      "image": "https://abdellah.b-cdn.net/products/items/zsc280n4ihr1x2ra8u500si1/1762004755335_H0t0sJZopuiOsQtqp4euPrdkBZvTg4r21135F720.jpg",
+      "quantity": 5,
+      "prices": [
+        {
+          "priceListId": "crvd4jeb31gznu4qzs4t1k8a",
+          "priceListName": "abdellah price",
+          "price": 11800
+        }
+      ],
+      "createdAt": "2025-11-01T13:45:43.879Z",
+      "updatedAt": "2025-11-01T13:45:43.879Z",
+      "id": "cdtwhvark9qnagmrn8fob3zd"
+    },
+    {
+      "name": "Washed Blue",
+      "image": "https://abdellah.b-cdn.net/products/items/r8fylfw9qwg59fq64lfx40m3/1762004743580_Mens_FW25_CasualSneakers.jpg",
+      "quantity": 12,
+      "prices": [
+        {
+          "priceListId": "crvd4jeb31gznu4qzs4t1k8a",
+          "priceListName": "abdellah price",
+          "price": 11500
+        }
+      ],
+      "createdAt": "2025-11-01T13:45:43.879Z",
+      "updatedAt": "2025-11-01T13:45:43.879Z",
+      "id": "hlt1pgg3jpottpr3r6s0pbqi"
+    },
+    {
+      "name": "Vintage Blue",
+      "image": "https://abdellah.b-cdn.net/products/items/s66xncip0of44736bb1ssfm4/1762004749318_H0t0sJZopuiOsQtqp4euPrdkBZvTg4r21135F720.jpg",
+      "quantity": 6,
+      "prices": [
+        {
+          "priceListId": "crvd4jeb31gznu4qzs4t1k8a",
+          "priceListName": "abdellah price",
+          "price": 11200
+        }
+      ],
+      "createdAt": "2025-11-01T13:45:43.879Z",
+      "updatedAt": "2025-11-01T13:45:43.879Z",
+      "id": "ux7vq7zm4n5b4oa8sfccac48"
+    },
+    {
+      "name": "jjjj",
+      "image": "https://abdellah.b-cdn.net/products/items/nc0kzztvw8k0navwc6i3juuk/1761828362970_H0t0sJZopuiOsQtqp4euPrdkBZvTg4r21135F720.jpg",
+      "quantity": 49,
+      "prices": [],
+      "createdAt": "2025-10-30T12:46:02.628Z",
+      "updatedAt": "2025-10-30T12:46:02.628Z",
+      "id": "cukh3liez2g9mzsk5ucqgyl3"
+    },
+    {
+      "name": "Nike two",
+      "image": "https://abdellahpull.b-cdn.net/products/items/jf3imx5iwriknlzdbe7hyklg/1762600693381_Screenshot 2025-11-05 at 11.48.56 PM.png",
+      "quantity": 6,
+      "prices": [],
+      "createdAt": "2025-11-08T11:18:13.284Z",
+      "updatedAt": "2025-11-08T11:18:13.284Z",
+      "id": "bjrf27vdot5hlmj98l5wzf7d"
+    },
+    {
+      "name": "Rust Brown",
+      "image": "https://abdellah.b-cdn.net/products/items/l025vivwu1qsnsh4nosset8q/1762004758368_H0t0sJZopuiOsQtqp4euPrdkBZvTg4r21135F720.jpg",
+      "quantity": 8,
+      "prices": [
+        {
+          "priceListId": "crvd4jeb31gznu4qzs4t1k8a",
+          "priceListName": "abdellah price",
+          "price": 12300
+        }
+      ],
+      "createdAt": "2025-11-01T13:45:43.879Z",
+      "updatedAt": "2025-11-01T13:45:43.879Z",
+      "id": "n86arg7d9t8ud3qth6mv2g20"
+    },
+    {
+      "name": "Olive Green",
+      "image": "https://abdellah.b-cdn.net/products/items/irasckwdvmac4f7suatqhvox/1762004750820_Mens_FW25_CasualSneakers.jpg",
+      "quantity": 9,
+      "prices": [
+        {
+          "priceListId": "crvd4jeb31gznu4qzs4t1k8a",
+          "priceListName": "abdellah price",
+          "price": 12000
+        }
+      ],
+      "createdAt": "2025-11-01T13:45:43.879Z",
+      "updatedAt": "2025-11-01T13:45:43.879Z",
+      "id": "f8u4ywluv3fq7czyno2dv9fc"
+    },
+    {
+      "name": "Nike two",
+      "image": "",
+      "quantity": 6,
+      "prices": [],
+      "createdAt": "2025-11-03T09:58:09.549Z",
+      "updatedAt": "2025-11-03T09:58:09.549Z",
+      "id": "mwz2aqg2a1xhsj4h45ehleb4"
     }
   ],
   "pagination": {
     "page": 1,
     "limit": 10,
-    "total": 2,
-    "totalPages": 1,
-    "hasNext": false,
+    "total": 18,
+    "totalPages": 2,
+    "hasNext": true,
     "hasPrev": false
   }
 }
@@ -97,9 +295,17 @@ Retrieve a paginated list of products from a store's inventory filtered by price
 | `name` | string \| null | Product name (can be null) |
 | `image` | string | URL to the product image |
 | `quantity` | number | Available quantity in stock |
-| `price` | number | Product price |
+| `prices` | array | List of price entries for the product across price lists |
 | `createdAt` | string (ISO 8601) | Product creation timestamp |
 | `updatedAt` | string (ISO 8601) | Last update timestamp |
+
+#### Price Object (within `prices`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `priceListId` | string | Price list identifier |
+| `priceListName` | string | Human-readable price list name |
+| `price` | number | Price value for this product in the given price list |
 
 #### Pagination Object
 
@@ -117,27 +323,27 @@ Retrieve a paginated list of products from a store's inventory filtered by price
 - `400 Bad Request`: Invalid query parameters or missing required headers
 - `401 Unauthorized`: Missing or invalid authentication token
 - `403 Forbidden`: Insufficient permissions or invalid store access
-- `404 Not Found`: Store not found or price list not found
+- `404 Not Found`: Store not found
 
 ### Example Requests
 
 **Get all products:**
 ```bash
-curl -X GET "https://jethings-backend.fly.dev/pos/products/YOUR_PRICELIST_ID" \
+curl -X GET "http://localhost:3000/pos/products" \
   -H "x-store-id: YOUR_STORE_ID" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 **Search products by barcode:**
 ```bash
-curl -X GET "https://jethings-backend.fly.dev/pos/products/YOUR_PRICELIST_ID?search=B001" \
+curl -X GET "http://localhost:3000/pos/products?search=B001" \
   -H "x-store-id: YOUR_STORE_ID" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 **Search products by name:**
 ```bash
-curl -X GET "https://jethings-backend.fly.dev/pos/products/YOUR_PRICELIST_ID?search=Nike" \
+curl -X GET "http://localhost:3000/pos/products?search=Nike" \
   -H "x-store-id: YOUR_STORE_ID" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
@@ -151,16 +357,14 @@ curl -X GET "https://jethings-backend.fly.dev/pos/products/YOUR_PRICELIST_ID?sea
 - The store ID must be valid and the user must have access to that store
 - Products from other stores are not accessible through this endpoint
 
-### Price List Filtering
-- Products are filtered by the specified price list ID in the path parameter
-- The price list ID must be valid and associated with the store
-- Product prices shown will reflect the pricing from the specified price list
-- If the price list doesn't exist or isn't associated with the store, a 404 error will be returned
+### Pricing
+- Each product includes all available price entries in the `prices` array
+- A product may have zero or more price entries, depending on associated price lists
 
 ### Search Functionality
 - The search parameter filters products across multiple fields (e.g., barcode, name, reference)
 - Search is case-insensitive and supports partial matching
-- If no search parameter is provided, all products in the store (filtered by price list) are returned (with pagination)
+- If no search parameter is provided, all products in the store are returned (with pagination)
 
 ### Pagination
 - Results are paginated by default
