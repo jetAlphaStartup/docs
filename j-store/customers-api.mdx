@@ -20,6 +20,7 @@ Customers can be:
 - Assigned or updated with a default price list
 - Filtered and sorted by various criteria
 - Retrieved in paginated lists
+- Bulk deleted from a store (remove multiple customer-store relations)
 
 ## Endpoint Details
 
@@ -440,6 +441,67 @@ curl -X DELETE "https://jethings-backend.fly.dev/customers/cst_abc123/price-list
 
 ---
 
+## Bulk Delete Customers
+
+**DELETE** `/customers/bulk`
+
+Remove multiple customers from the current store in one request. This deletes the customer-store relations for the provided IDs; it does not delete the underlying customer records globally.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                |
+| ------------ | -------- | -------- | ------------------------------------------ |
+| `x-store-id` | `string` | Yes      | Store identifier (used by `@StoreId()` decorator) |
+
+### Request Body
+
+```json
+{
+  "ids": ["cst_123", "cst_456", "cst_789"]
+}
+```
+
+### Request Body Fields
+
+| Field | Type            | Required | Description                                        |
+| ----- | --------------- | -------- | -------------------------------------------------- |
+| `ids` | `string[]` UUID | Yes      | List of customer IDs linked to this store to remove |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "message": "Customers removed from store",
+  "deletedCount": 3
+}
+```
+
+### Possible Errors
+
+| Code | Message                                 |
+| ---- | --------------------------------------- |
+| 400  | No customer IDs provided                |
+| 403  | User does not have access to this store |
+| 500  | Internal Server Error                   |
+
+### Example Request
+
+```bash
+curl -X DELETE "https://jethings-backend.fly.dev/customers/bulk" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here" \
+  -d '{
+    "ids": ["cst_123", "cst_456"]
+  }'
+```
+
+---
+
 ## Data Models
 
 ### CustomerResponseDto
@@ -485,6 +547,7 @@ curl -X DELETE "https://jethings-backend.fly.dev/customers/cst_abc123/price-list
 | `/customers`                                | `POST`   | Create a new customer and link to store        |
 | `/customers/:customerId/price-list`         | `PUT`    | Assign or update customer's default price list |
 | `/customers/:customerId/price-list`         | `DELETE` | Remove customer's default price list           |
+| `/customers/bulk`                           | `DELETE` | Bulk remove customers from the current store   |
 
 ---
 
@@ -543,6 +606,8 @@ These methods are part of the internal business logic and are not exposed as pub
 - User must have access to the specified store
 - `localName` is required when creating a customer
 - `priceListId` must be a valid UUID and reference an existing, active price list
+- Bulk delete requires at least one valid UUID in `ids`
+- Only customers linked to the specified store will be removed
 
 ---
 
