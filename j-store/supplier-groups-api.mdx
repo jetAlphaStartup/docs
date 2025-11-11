@@ -1,0 +1,661 @@
+---
+title: "Supplier Group API"
+description: "Supplier group management API for organizing suppliers, assigning them to groups, and maintaining store-specific categorizations."
+---
+
+# Supplier Group API
+
+The Supplier Group API enables stores to organize suppliers into groups, manage group memberships, and maintain store-specific group details.
+
+<Note>
+All Supplier Group API endpoints require authentication. Routes that operate in a store context also require a valid `x-store-id` header.
+</Note>
+
+## Overview
+
+Supplier groups can be:
+- Created per store with unique names
+- Listed with pagination, filtering, and sorting
+- Retrieved individually or as a simplified list
+- Updated for name or metadata
+- Deleted individually or in bulk (if empty)
+- Used to bulk assign or remove suppliers
+
+## Endpoint Details
+
+**Base URL:** `/supplier-groups`  
+**Content-Type:** `application/json`
+
+### Required Headers
+
+```
+Authorization: Bearer <token>
+x-store-id: <store_id>
+```
+
+<Warning>
+Endpoints that require `x-store-id` enforce store-level access control. Ensure the requesting user has an active relation with the store.
+</Warning>
+
+---
+
+## Create Supplier Group
+
+**POST** `/supplier-groups`
+
+Create a new supplier group scoped to the current store.
+
+**Requires Authentication:** Bearer token in Authorization header  
+**Requires Header:** `x-store-id`
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                        |
+| ------------ | -------- | -------- | -------------------------------------------------- |
+| `x-store-id` | `string` | Yes      | Store identifier (used by `@StoreId()` decorator) |
+
+### Request Body
+
+```json
+{
+  "name": "Electronics Group"
+}
+```
+
+### Request Body Fields
+
+| Field  | Type     | Required | Description                  |
+| ------ | -------- | -------- | ---------------------------- |
+| `name` | `string` | Yes      | Unique supplier group name   |
+
+### Success Response
+
+**Status Code:** `201 Created`
+
+```json
+{
+  "id": "sgrp_abc123",
+  "name": "Electronics Group",
+  "supplierCount": 0,
+  "createdAt": "2025-11-03T10:00:00.000Z",
+  "updatedAt": "2025-11-03T10:00:00.000Z",
+  "deletedAt": null
+}
+```
+
+### Possible Errors
+
+| Code | Message                                                        |
+| ---- | -------------------------------------------------------------- |
+| 400  | Bad Request - Invalid input data                               |
+| 401  | Unauthorized                                                   |
+| 403  | Forbidden - User does not have access to this store            |
+| 409  | Conflict - Supplier group with this name already exists        |
+| 500  | Internal Server Error                                          |
+
+### Example Request
+
+```bash
+curl -X POST "https://jethings-backend.fly.dev/supplier-groups" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here" \
+  -d '{ "name": "Electronics Group" }'
+```
+
+---
+
+## Get Supplier Groups
+
+**GET** `/supplier-groups`
+
+Retrieve a paginated list of supplier groups for the current store with optional filters.
+
+**Requires Authentication:** Bearer token in Authorization header  
+**Requires Header:** `x-store-id`
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                        |
+| ------------ | -------- | -------- | -------------------------------------------------- |
+| `x-store-id` | `string` | Yes      | Store identifier (used by `@StoreId()` decorator) |
+
+### Query Parameters
+
+| Parameter   | Type      | Required | Description                                             | Default     |
+| ----------- | --------- | -------- | ------------------------------------------------------- | ----------- |
+| `search`    | `string`  | No       | Partial match for group name                            | —           |
+| `name`      | `string`  | No       | Partial match for group name (alias of search)          | —           |
+| `page`      | `number`  | No       | Page number (1-based)                                   | `1`         |
+| `limit`     | `number`  | No       | Items per page (1–100)                                  | `10`        |
+| `sortBy`    | `string`  | No       | Sort field (`id`, `name`, `updatedAt`, `createdAt`)     | `createdAt` |
+| `sortOrder` | `string`  | No       | Sort direction (`asc` or `desc`)                        | `desc`      |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "data": [
+    {
+      "id": "sgrp_abc123",
+      "name": "Electronics Group",
+      "supplierCount": 5,
+      "createdAt": "2025-10-01T09:00:00.000Z",
+      "updatedAt": "2025-10-15T12:30:00.000Z",
+      "deletedAt": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 4,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrev": false
+  }
+}
+```
+
+### Response Fields
+
+#### SupplierGroup Object
+
+| Field            | Type     | Description                               |
+| ---------------- | -------- | ----------------------------------------- |
+| `id`             | `string` | Unique supplier group ID                  |
+| `name`           | `string` | Group name                                |
+| `supplierCount`  | `number` | Number of active suppliers in the group   |
+| `createdAt`      | `string` | Creation timestamp (ISO 8601)             |
+| `updatedAt`      | `string` | Last update timestamp (ISO 8601)          |
+| `deletedAt`      | `string` | Deletion timestamp (if soft deleted)      |
+
+#### Pagination Object
+
+| Field        | Type      | Description                    |
+| ------------ | --------- | ------------------------------ |
+| `page`       | `number`  | Current page number            |
+| `limit`      | `number`  | Number of items per page       |
+| `total`      | `number`  | Total number of records        |
+| `totalPages` | `number`  | Total pages available          |
+| `hasNext`    | `boolean` | Whether a next page exists     |
+| `hasPrev`    | `boolean` | Whether a previous page exists |
+
+### Possible Errors
+
+| Code | Message                                        |
+| ---- | ---------------------------------------------- |
+| 401  | Unauthorized                                   |
+| 403  | Forbidden - User does not have access to store |
+| 500  | Internal Server Error                          |
+
+### Example Requests
+
+List groups with default pagination:
+```bash
+curl -X GET "https://jethings-backend.fly.dev/supplier-groups" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here"
+```
+
+Search by name:
+```bash
+curl -X GET "https://jethings-backend.fly.dev/supplier-groups?search=electronics" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here"
+```
+
+---
+
+## Get Supplier Groups List
+
+**GET** `/supplier-groups/list`
+
+Retrieve all supplier groups accessible to the authenticated user across stores they can access. This simplified list includes supplier count per group.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+[
+  {
+    "id": "sgrp_abc123",
+    "name": "Electronics Group",
+    "supplierCount": 5,
+    "createdAt": "2025-10-01T09:00:00.000Z",
+    "updatedAt": "2025-10-15T12:30:00.000Z",
+    "deletedAt": null
+  }
+]
+```
+
+### Possible Errors
+
+| Code | Message                       |
+| ---- | ----------------------------- |
+| 401  | Unauthorized                  |
+| 500  | Internal Server Error         |
+
+### Example Request
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/supplier-groups/list" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+---
+
+## Get Supplier Group by ID
+
+**GET** `/supplier-groups/:id`
+
+Retrieve a supplier group by ID.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Path Parameters
+
+| Parameter | Type     | Required | Description             |
+| --------- | -------- | -------- | ----------------------- |
+| `id`      | `string` | Yes      | Supplier group ID       |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "id": "sgrp_abc123",
+  "name": "Electronics Group",
+  "supplierCount": 5,
+  "createdAt": "2025-10-01T09:00:00.000Z",
+  "updatedAt": "2025-10-15T12:30:00.000Z",
+  "deletedAt": null
+}
+```
+
+### Possible Errors
+
+| Code | Message                                |
+| ---- | -------------------------------------- |
+| 404  | Not Found - Supplier group not found   |
+| 500  | Internal Server Error                  |
+
+### Example Request
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/supplier-groups/sgrp_abc123" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+---
+
+## Update Supplier Group
+
+**PUT** `/supplier-groups/:id`
+
+Update a supplier group's name.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Path Parameters
+
+| Parameter | Type     | Required | Description             |
+| --------- | -------- | -------- | ----------------------- |
+| `id`      | `string` | Yes      | Supplier group ID       |
+
+### Request Body
+
+```json
+{
+  "name": "Electronics Group (Updated)"
+}
+```
+
+### Request Body Fields
+
+| Field  | Type     | Required | Description                |
+| ------ | -------- | -------- | -------------------------- |
+| `name` | `string` | No       | Updated supplier group name|
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+Returns the updated SupplierGroup object (same shape as in "Get Supplier Group by ID").
+
+### Possible Errors
+
+| Code | Message                                                        |
+| ---- | -------------------------------------------------------------- |
+| 404  | Not Found - Supplier group not found                           |
+| 409  | Conflict - Supplier group with this name already exists        |
+| 500  | Internal Server Error                                          |
+
+### Example Request
+
+```bash
+curl -X PUT "https://jethings-backend.fly.dev/supplier-groups/sgrp_abc123" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -d '{ "name": "Electronics Group (Updated)" }'
+```
+
+---
+
+## Delete Supplier Group
+
+**DELETE** `/supplier-groups/:id`
+
+Delete a supplier group. The group must not contain active suppliers.
+
+<Warning>
+If the group still contains suppliers, deletion will fail with a conflict error. Reassign or remove suppliers before deleting.
+</Warning>
+
+### Path Parameters
+
+| Parameter | Type     | Required | Description             |
+| --------- | -------- | -------- | ----------------------- |
+| `id`      | `string` | Yes      | Supplier group ID       |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{ "message": "Supplier group deleted successfully" }
+```
+
+### Possible Errors
+
+| Code | Message                                                                 |
+| ---- | ----------------------------------------------------------------------- |
+| 404  | Not Found - Supplier group not found                                    |
+| 409  | Conflict - Supplier group has active suppliers                          |
+| 500  | Internal Server Error                                                   |
+
+### Example Request
+
+```bash
+curl -X DELETE "https://jethings-backend.fly.dev/supplier-groups/sgrp_abc123" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+---
+
+## Bulk Delete Supplier Groups
+
+**DELETE** `/supplier-groups`
+
+Delete multiple supplier groups by IDs. Each group must be empty (no active suppliers).
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                        |
+| ------------ | -------- | -------- | -------------------------------------------------- |
+| `x-store-id` | `string` | Yes      | Store identifier (used by `@StoreId()` decorator) |
+
+### Request Body
+
+```json
+{
+  "ids": ["sgrp_123", "sgrp_456"]
+}
+```
+
+### Request Body Fields
+
+| Field | Type            | Required | Description                   |
+| ----- | --------------- | -------- | ----------------------------- |
+| `ids` | `string[]` UUID | Yes      | Supplier group IDs to delete  |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "message": "Successfully deleted 2 out of 2 supplier groups",
+  "deletedCount": 2
+}
+```
+
+### Possible Errors
+
+| Code | Message                                         |
+| ---- | ----------------------------------------------- |
+| 400  | No supplier group IDs provided                  |
+| 404  | Supplier group not found                        |
+| 409  | Conflict - Group has active suppliers           |
+| 500  | Internal Server Error                           |
+
+### Example Request
+
+```bash
+curl -X DELETE "https://jethings-backend.fly.dev/supplier-groups" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here" \
+  -d '{ "ids": ["sgrp_123", "sgrp_456"] }'
+```
+
+---
+
+## Bulk Assign Suppliers to Group
+
+**POST** `/supplier-groups/:id/assign-suppliers`
+
+Assign multiple suppliers to a supplier group. Existing assignments are skipped.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Path Parameters
+
+| Parameter | Type     | Required | Description             |
+| --------- | -------- | -------- | ----------------------- |
+| `id`      | `string` | Yes      | Supplier group ID       |
+
+### Request Body
+
+```json
+{
+  "supplierIds": ["sup_123", "sup_456", "sup_789"]
+}
+```
+
+### Request Body Fields
+
+| Field          | Type            | Required | Description                         |
+| -------------- | --------------- | -------- | ----------------------------------- |
+| `supplierIds`  | `string[]` UUID | Yes      | Supplier IDs to assign to the group |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "message": "Successfully assigned 2 out of 3 suppliers to group",
+  "assignedCount": 2
+}
+```
+
+### Possible Errors
+
+| Code | Message                                                              |
+| ---- | -------------------------------------------------------------------- |
+| 404  | Supplier group not found or supplier not found                       |
+| 500  | Internal Server Error                                                |
+
+### Example Request
+
+```bash
+curl -X POST "https://jethings-backend.fly.dev/supplier-groups/sgrp_abc123/assign-suppliers" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -d '{ "supplierIds": ["sup_123", "sup_456"] }'
+```
+
+---
+
+## Bulk Remove Suppliers from Group
+
+**POST** `/supplier-groups/:id/remove-suppliers`
+
+Remove multiple suppliers from a supplier group. Relations are marked inactive rather than deleted.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Path Parameters
+
+| Parameter | Type     | Required | Description             |
+| --------- | -------- | -------- | ----------------------- |
+| `id`      | `string` | Yes      | Supplier group ID       |
+
+### Request Body
+
+```json
+{
+  "supplierIds": ["sup_123", "sup_456"]
+}
+```
+
+### Request Body Fields
+
+| Field          | Type            | Required | Description                                     |
+| -------------- | --------------- | -------- | ----------------------------------------------- |
+| `supplierIds`  | `string[]` UUID | Yes      | Supplier IDs to remove from the group           |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "message": "Successfully removed 2 out of 2 suppliers from group",
+  "removedCount": 2
+}
+```
+
+### Possible Errors
+
+| Code | Message                                                              |
+| ---- | -------------------------------------------------------------------- |
+| 404  | Supplier group not found or supplier not found                       |
+| 500  | Internal Server Error                                                |
+
+### Example Request
+
+```bash
+curl -X POST "https://jethings-backend.fly.dev/supplier-groups/sgrp_abc123/remove-suppliers" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -d '{ "supplierIds": ["sup_123", "sup_456"] }'
+```
+
+---
+
+## Data Models
+
+### SupplierGroupResponseDto
+
+| Field           | Type      | Description                        |
+| --------------- | --------- | ---------------------------------- |
+| `id`            | `string`  | Supplier group ID                  |
+| `name`          | `string`  | Group name                         |
+| `createdAt`     | `Date`    | Creation timestamp                 |
+| `updatedAt`     | `Date`    | Last update timestamp              |
+| `deletedAt`     | `Date?`   | Deletion timestamp (if applicable) |
+| `supplierCount` | `number`  | Active suppliers in the group      |
+
+### PaginatedSupplierGroupsResponseDto
+
+```typescript
+{
+  data: SupplierGroupResponseDto[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+```
+
+### BulkAssignSuppliersDto
+
+```typescript
+{
+  supplierIds: string[];
+}
+```
+
+### BulkRemoveSuppliersDto
+
+```typescript
+{
+  supplierIds: string[];
+}
+```
+
+---
+
+## Summary
+
+| Endpoint                                      | Method   | Description                                   |
+| --------------------------------------------- | -------- | --------------------------------------------- |
+| `/supplier-groups`                            | `POST`   | Create a new supplier group                   |
+| `/supplier-groups`                            | `GET`    | Paginated list of supplier groups             |
+| `/supplier-groups/list`                       | `GET`    | List supplier groups accessible to the user   |
+| `/supplier-groups/:id`                        | `GET`    | Retrieve a supplier group by ID               |
+| `/supplier-groups/:id`                        | `PUT`    | Update a supplier group                       |
+| `/supplier-groups/:id`                        | `DELETE` | Delete a supplier group                       |
+| `/supplier-groups`                            | `DELETE` | Bulk delete supplier groups                   |
+| `/supplier-groups/:id/assign-suppliers`       | `POST`   | Bulk assign suppliers to a group              |
+| `/supplier-groups/:id/remove-suppliers`       | `POST`   | Bulk remove suppliers from a group            |
+
+---
+
+## Security & Validation
+
+- `x-store-id` header required for store-scoped operations
+- Unique group names enforced per store
+- Bulk operations validate each supplier/group before proceeding
+- Pagination parameters capped (limit <= 100)
+- Supplier group deletion requires no active suppliers
+- Bulk assignments skip already-associated suppliers
+
+---
+
+## Error Responses
+
+### Common Error Codes
+
+| Code | Description                               |
+| ---- | ----------------------------------------- |
+| 400  | Bad Request - Invalid input or validation |
+| 401  | Unauthorized                              |
+| 403  | Forbidden - Missing store access          |
+| 404  | Not Found - Resource missing              |
+| 409  | Conflict - Name duplicate or group not empty |
+| 500  | Internal Server Error                     |
+
+### Error Response Format
+
+```json
+{
+  "message": "Error description",
+  "statusCode": 400
+}
+```
+
+

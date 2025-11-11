@@ -1,0 +1,693 @@
+---
+title: "Supplier API"
+description: "Supplier management API for creating, retrieving, updating and deleting suppliers linked to stores"
+---
+
+# Supplier API
+
+The Supplier API provides endpoints for managing suppliers and their relations to stores, groups, addresses, and contacts.
+
+<Note>
+All Supplier API endpoints require authentication and a valid `x-store-id` header to identify the store context, unless stated otherwise.
+</Note>
+
+## Overview
+
+Suppliers can be:
+- Linked to one or more stores
+- Assigned to one or more supplier groups
+- Created with optional address and contact information
+- Assigned or updated with a default price list
+- Filtered and sorted by various criteria
+- Retrieved in paginated lists
+- Deleted individually or in bulk
+
+## Endpoint Details
+
+**Base URL:** `/suppliers`  
+**Content-Type:** `application/json`
+
+### Required Headers
+
+```
+Authorization: Bearer <token>
+x-store-id: <store_id>
+```
+
+<Warning>
+All routes require a valid `x-store-id` header. Users must have an active relation with the store to access its suppliers.
+</Warning>
+
+---
+
+## Get Suppliers
+
+**GET** `/suppliers`
+
+Retrieve a paginated list of suppliers linked to the store that the authenticated user has access to.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                            |
+| ------------ | -------- | -------- | ------------------------------------------------------ |
+| `x-store-id` | `string` | Yes      | Store identifier (used by `@StoreId()` decorator)     |
+
+### Query Parameters
+
+| Parameter   | Type       | Required | Description                                                      | Default     |
+| ----------- | ---------- | -------- | ---------------------------------------------------------------- | ----------- |
+| `search`    | `string`   | No       | Filter by name or description (partial match)                    | —           |
+| `name`      | `string`   | No       | Filter by supplier name (partial match)                          | —           |
+| `isActive`  | `boolean`  | No       | Filter by active/inactive status                                 | —           |
+| `page`      | `number`   | No       | Page number (1-based)                                            | `1`         |
+| `limit`     | `number`   | No       | Number of items per page (1–100)                                 | `10`        |
+| `sortBy`    | `string`   | No       | Sort field (`name`, `isActive`, `updatedAt`, `createdAt`)        | `createdAt` |
+| `sortOrder` | `string`   | No       | Sort direction (`asc` or `desc`)                                 | `desc`      |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "data": [
+    {
+      "id": "sup_12345",
+      "storeIds": ["str_1", "str_2"],
+      "supplierGroups": [
+        { "id": "grp_1", "name": "Preferred" }
+      ],
+      "name": "Global Traders Ltd.",
+      "description": "Household goods wholesaler",
+      "note": "Ships on Mondays",
+      "defaultPriceListId": "pl_abc123",
+      "address": {
+        "id": "addr_1",
+        "street": "123 Main St",
+        "city": "Casablanca",
+        "state": "CA",
+        "postalCode": "20000",
+        "country": "MA"
+      },
+      "contact": {
+        "id": "cont_1",
+        "phone": "+212600111222",
+        "fax": null,
+        "email": "sales@globaltraders.com",
+        "website": "https://globaltraders.com"
+      },
+      "isActive": true,
+      "createdAt": "2025-11-03T10:00:00.000Z",
+      "updatedAt": "2025-11-03T10:30:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 12,
+    "totalPages": 2,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
+
+### Response Fields
+
+#### Supplier Object
+
+| Field                   | Type        | Description                                  |
+| ----------------------- | ----------- | -------------------------------------------- |
+| `id`                    | `string`    | Unique supplier ID                           |
+| `storeIds`              | `string[]`  | Store IDs this supplier is linked to         |
+| `supplierGroups`        | `object[]`  | Groups assigned to the supplier              |
+| `supplierGroups[].id`   | `string`    | Group ID                                     |
+| `supplierGroups[].name` | `string`    | Group name                                   |
+| `name`                  | `string`    | Supplier display name                        |
+| `description`           | `string?`   | Supplier description                         |
+| `note`                  | `string?`   | Internal note                                |
+| `defaultPriceListId`    | `string?`   | Default price list ID                        |
+| `address`               | `Address?`  | Address information                          |
+| `contact`               | `Contact?`  | Contact information                          |
+| `isActive`              | `boolean`   | Active status                                |
+| `createdAt`             | `string`    | Creation timestamp (ISO 8601)                |
+| `updatedAt`             | `string`    | Last update timestamp (ISO 8601)             |
+
+#### Address
+
+| Field        | Type     | Description          |
+| ------------ | -------- | -------------------- |
+| `id`         | `string` | Address ID           |
+| `street`     | `string` | Street               |
+| `city`       | `string` | City                 |
+| `state`      | `string` | State/Province       |
+| `postalCode` | `string` | Postal/ZIP code      |
+| `country`    | `string` | Country              |
+
+#### Contact
+
+| Field      | Type     | Description          |
+| ---------- | -------- | -------------------- |
+| `id`       | `string` | Contact ID           |
+| `phone`    | `string` | Phone number         |
+| `fax`      | `string` | Fax number           |
+| `email`    | `string` | Email address        |
+| `website`  | `string` | Website URL          |
+
+#### Pagination Object
+
+| Field        | Type      | Description                    |
+| ------------ | --------- | ------------------------------ |
+| `page`       | `number`  | Current page number            |
+| `limit`      | `number`  | Number of items per page       |
+| `total`      | `number`  | Total number of records        |
+| `totalPages` | `number`  | Total pages available          |
+| `hasNext`    | `boolean` | Whether a next page exists     |
+| `hasPrev`    | `boolean` | Whether a previous page exists |
+
+### Possible Errors
+
+| Code | Message                                        |
+| ---- | ---------------------------------------------- |
+| 400  | Bad Request - Invalid query params             |
+| 403  | Forbidden - User does not have access to store |
+| 500  | Internal Server Error                          |
+
+### Example Requests
+
+Get all suppliers with default pagination:
+```bash
+curl -X GET "https://jethings-backend.fly.dev/suppliers" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here"
+```
+
+Search suppliers by name/description:
+```bash
+curl -X GET "https://jethings-backend.fly.dev/suppliers?search=global&page=1&limit=10&sortBy=name&sortOrder=asc" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here"
+```
+
+Filter by active status:
+```bash
+curl -X GET "https://jethings-backend.fly.dev/suppliers?isActive=true&page=1&limit=20" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here"
+```
+
+---
+
+## Get Supplier by ID
+
+**GET** `/suppliers/:id`
+
+Retrieve a single supplier by ID. The supplier must be linked to the current store.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                            |
+| ------------ | -------- | -------- | ------------------------------------------------------ |
+| `x-store-id` | `string` | Yes      | Store identifier (used by `@StoreId()` decorator)     |
+
+### Path Parameters
+
+| Parameter | Type     | Required | Description            |
+| --------- | -------- | -------- | ---------------------- |
+| `id`      | `string` | Yes      | The ID of the supplier |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "id": "sup_12345",
+  "storeIds": ["str_1"],
+  "supplierGroups": [{ "id": "grp_1", "name": "Preferred" }],
+  "name": "Global Traders Ltd.",
+  "description": "Household goods wholesaler",
+  "note": "Ships on Mondays",
+  "defaultPriceListId": "pl_abc123",
+  "address": {
+    "id": "addr_1",
+    "street": "123 Main St",
+    "city": "Casablanca",
+    "state": "CA",
+    "postalCode": "20000",
+    "country": "MA"
+  },
+  "contact": {
+    "id": "cont_1",
+    "phone": "+212600111222",
+    "fax": null,
+    "email": "sales@globaltraders.com",
+    "website": "https://globaltraders.com"
+  },
+  "isActive": true,
+  "createdAt": "2025-11-03T10:00:00.000Z",
+  "updatedAt": "2025-11-03T10:30:00.000Z"
+}
+```
+
+### Possible Errors
+
+| Code | Message                                        |
+| ---- | ---------------------------------------------- |
+| 403  | Forbidden - User does not have access to store |
+| 404  | Not Found - Supplier not found or inaccessible |
+| 500  | Internal Server Error                          |
+
+### Example Request
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/suppliers/sup_12345" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here"
+```
+
+---
+
+## Create Supplier
+
+**POST** `/suppliers`
+
+Create a new supplier and link it to the current store. You can optionally assign supplier groups, a default price list, address, and contact information.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                            |
+| ------------ | -------- | -------- | ------------------------------------------------------ |
+| `x-store-id` | `string` | Yes      | Store identifier (used by `@StoreId()` decorator)     |
+
+### Request Body
+
+```json
+{
+  "supplierGroupIds": ["grp_1", "grp_2"],
+  "name": "Global Traders Ltd.",
+  "description": "Household goods wholesaler",
+  "note": "Ships on Mondays",
+  "defaultPriceListId": "pl_abc123",
+  "address": {
+    "street": "123 Main St",
+    "city": "Casablanca",
+    "state": "CA",
+    "postalCode": "20000",
+    "country": "MA"
+  },
+  "contact": {
+    "phone": "+212600111222",
+    "fax": null,
+    "email": "sales@globaltraders.com",
+    "website": "https://globaltraders.com"
+  }
+}
+```
+
+### Request Body Fields
+
+| Field                | Type            | Required | Description                                  |
+| -------------------- | --------------- | -------- | -------------------------------------------- |
+| `supplierGroupIds`   | `string[]` UUID | No       | Supplier groups to associate                 |
+| `name`               | `string`        | Yes      | Supplier name                                |
+| `description`        | `string`        | No       | Description                                  |
+| `note`               | `string`        | No       | Internal note                                |
+| `defaultPriceListId` | `string` (UUID) | No       | Default price list to assign                 |
+| `address`            | `AddressInput`  | No       | Address to create                            |
+| `contact`            | `ContactInput`  | No       | Contact to create                            |
+
+#### AddressInput
+
+| Field        | Type     | Required | Description     |
+| ------------ | -------- | -------- | --------------- |
+| `street`     | `string` | No       | Street          |
+| `city`       | `string` | No       | City            |
+| `state`      | `string` | No       | State/Province  |
+| `postalCode` | `string` | No       | Postal/ZIP code |
+| `country`    | `string` | No       | Country         |
+
+#### ContactInput
+
+| Field     | Type     | Required | Description   |
+| --------- | -------- | -------- | ------------- |
+| `phone`   | `string` | No       | Phone number  |
+| `fax`     | `string` | No       | Fax number    |
+| `email`   | `string` | No       | Email address |
+| `website` | `string` | No       | Website URL   |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "id": "sup_abc123",
+  "storeIds": ["str_12345"],
+  "supplierGroups": [
+    { "id": "grp_1", "name": "Preferred" },
+    { "id": "grp_2", "name": "Local" }
+  ],
+  "name": "Global Traders Ltd.",
+  "description": "Household goods wholesaler",
+  "note": "Ships on Mondays",
+  "defaultPriceListId": "pl_abc123",
+  "address": {
+    "id": "addr_1",
+    "street": "123 Main St",
+    "city": "Casablanca",
+    "state": "CA",
+    "postalCode": "20000",
+    "country": "MA"
+  },
+  "contact": {
+    "id": "cont_1",
+    "phone": "+212600111222",
+    "fax": null,
+    "email": "sales@globaltraders.com",
+    "website": "https://globaltraders.com"
+  },
+  "isActive": true,
+  "createdAt": "2025-11-03T10:00:00.000Z",
+  "updatedAt": "2025-11-03T10:00:00.000Z"
+}
+```
+
+### Possible Errors
+
+| Code | Message                                                                |
+| ---- | ---------------------------------------------------------------------- |
+| 400  | Bad Request - Invalid request data                                     |
+| 403  | Forbidden - User does not have access to this store                    |
+| 404  | Not Found - Price list or supplier group not found                     |
+| 500  | Internal Server Error - Failed to create supplier                      |
+
+### Example Request
+
+```bash
+curl -X POST "https://jethings-backend.fly.dev/suppliers" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here" \
+  -d '{
+    "supplierGroupIds": ["grp_1"],
+    "name": "Global Traders Ltd.",
+    "description": "Household goods wholesaler",
+    "note": "Ships on Mondays",
+    "defaultPriceListId": "pl_abc123",
+    "address": {
+      "street": "123 Main St",
+      "city": "Casablanca",
+      "state": "CA",
+      "postalCode": "20000",
+      "country": "MA"
+    },
+    "contact": {
+      "phone": "+212600111222",
+      "email": "sales@globaltraders.com",
+      "website": "https://globaltraders.com"
+    }
+  }'
+```
+
+---
+
+## Update Supplier
+
+**PUT** `/suppliers/:id`
+
+Update an existing supplier. You may update core fields, default price list, address, and contact. If address/contact do not exist, they will be created.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                            |
+| ------------ | -------- | -------- | ------------------------------------------------------ |
+| `x-store-id` | `string` | Yes      | Store identifier (used by `@StoreId()` decorator)     |
+
+### Path Parameters
+
+| Parameter | Type     | Required | Description            |
+| --------- | -------- | -------- | ---------------------- |
+| `id`      | `string` | Yes      | The ID of the supplier |
+
+### Request Body
+
+```json
+{
+  "name": "Global Traders Ltd. (Updated)",
+  "description": "Updated description",
+  "note": "Priority handling",
+  "defaultPriceListId": "pl_789xyz",
+  "isActive": true,
+  "address": {
+    "street": "456 New Ave",
+    "city": "Rabat",
+    "state": "RA",
+    "postalCode": "10000",
+    "country": "MA"
+  },
+  "contact": {
+    "phone": "+212600999888",
+    "fax": null,
+    "email": "ops@globaltraders.com",
+    "website": "https://globaltraders.com/contact"
+  }
+}
+```
+
+### Request Body Fields
+
+| Field                | Type            | Required | Description                                  |
+| -------------------- | --------------- | -------- | -------------------------------------------- |
+| `name`               | `string`        | No       | Supplier name                                |
+| `description`        | `string`        | No       | Description                                  |
+| `note`               | `string`        | No       | Internal note                                |
+| `defaultPriceListId` | `string` (UUID) | No       | Default price list to assign                 |
+| `isActive`           | `boolean`       | No       | Active status                                |
+| `address`            | `AddressInput`  | No       | Address to create/update                     |
+| `contact`            | `ContactInput`  | No       | Contact to create/update                     |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+Returns the updated Supplier object (same shape as in "Get Supplier by ID").
+
+### Possible Errors
+
+| Code | Message                                                                |
+| ---- | ---------------------------------------------------------------------- |
+| 403  | Forbidden - User does not have access to this store                    |
+| 404  | Not Found - Supplier or price list not found                           |
+| 500  | Internal Server Error - Failed to update supplier                      |
+
+### Example Request
+
+```bash
+curl -X PUT "https://jethings-backend.fly.dev/suppliers/sup_abc123" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here" \
+  -d '{
+    "name": "Global Traders Ltd. (Updated)",
+    "defaultPriceListId": "pl_789xyz",
+    "isActive": true
+  }'
+```
+
+---
+
+## Delete Supplier
+
+**DELETE** `/suppliers/:id`
+
+Delete a supplier by ID.
+
+<Warning>
+This operation deletes the supplier record. Use with caution.
+</Warning>
+
+### Path Parameters
+
+| Parameter | Type     | Required | Description            |
+| --------- | -------- | -------- | ---------------------- |
+| `id`      | `string` | Yes      | The ID of the supplier |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{ "message": "Supplier deleted successfully" }
+```
+
+### Possible Errors
+
+| Code | Message                       |
+| ---- | ----------------------------- |
+| 404  | Not Found - Supplier not found|
+| 500  | Internal Server Error         |
+
+### Example Request
+
+```bash
+curl -X DELETE "https://jethings-backend.fly.dev/suppliers/sup_abc123" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+---
+
+## Bulk Delete Suppliers
+
+**DELETE** `/suppliers`
+
+Delete multiple suppliers by IDs in a single request.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                            |
+| ------------ | -------- | -------- | ------------------------------------------------------ |
+| `x-store-id` | `string` | Yes      | Store identifier (used by `@StoreId()` decorator)     |
+
+### Request Body
+
+```json
+{
+  "ids": ["sup_123", "sup_456", "sup_789"]
+}
+```
+
+### Request Body Fields
+
+| Field | Type            | Required | Description                         |
+| ----- | --------------- | -------- | ----------------------------------- |
+| `ids` | `string[]` UUID | Yes      | Supplier IDs to delete              |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "message": "Successfully deleted 3 supplier(s)",
+  "deletedCount": 3
+}
+```
+
+### Possible Errors
+
+| Code | Message                                 |
+| ---- | --------------------------------------- |
+| 400  | No supplier IDs provided                |
+| 404  | No valid suppliers found to delete      |
+| 500  | Internal Server Error                   |
+
+### Example Request
+
+```bash
+curl -X DELETE "https://jethings-backend.fly.dev/suppliers" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here" \
+  -d '{ "ids": ["sup_123", "sup_456"] }'
+```
+
+---
+
+## Data Models
+
+### SupplierResponseDto
+
+| Field                   | Type         | Description                                  |
+| ----------------------- | ------------ | -------------------------------------------- |
+| `id`                    | `string`     | Unique supplier ID                           |
+| `storeIds`              | `string[]`   | Store IDs linked to the supplier             |
+| `supplierGroups`        | `object[]`   | Supplier groups (id, name)                   |
+| `name`                  | `string`     | Supplier name                                |
+| `description`           | `string?`    | Description                                  |
+| `note`                  | `string?`    | Internal note                                |
+| `defaultPriceListId`    | `string?`    | Default price list ID                        |
+| `address`               | `Address?`   | Address info                                 |
+| `contact`               | `Contact?`   | Contact info                                 |
+| `isActive`              | `boolean`    | Active status                                |
+| `createdAt`             | `Date`       | Creation timestamp                           |
+| `updatedAt`             | `Date`       | Last update timestamp                        |
+
+### PaginationDto
+
+| Field        | Type      | Description                    |
+| ------------ | --------- | ------------------------------ |
+| `page`       | `number`  | Current page number            |
+| `limit`      | `number`  | Number of items per page       |
+| `total`      | `number`  | Total number of records        |
+| `totalPages` | `number`  | Total pages available          |
+| `hasNext`    | `boolean` | Whether a next page exists     |
+| `hasPrev`    | `boolean` | Whether a previous page exists |
+
+### PaginatedSuppliersResponseDto
+
+```typescript
+{
+  data: SupplierResponseDto[];
+  pagination: PaginationDto;
+}
+```
+
+---
+
+## Summary
+
+| Endpoint                      | Method   | Description                                   |
+| ----------------------------- | -------- | --------------------------------------------- |
+| `/suppliers`                  | `GET`    | Retrieve paginated list of suppliers          |
+| `/suppliers/:id`              | `GET`    | Retrieve a single supplier by ID              |
+| `/suppliers`                  | `POST`   | Create a new supplier and link to store       |
+| `/suppliers/:id`              | `PUT`    | Update an existing supplier                   |
+| `/suppliers/:id`              | `DELETE` | Delete a supplier by ID                       |
+| `/suppliers`                  | `DELETE` | Bulk delete suppliers                          |
+
+---
+
+## Security & Validation
+
+- All routes require a valid `x-store-id` header (except single delete which still requires auth)
+- User must have an active relation with the store to access its suppliers
+- Pagination limits should be respected (max 100 per page)
+- SortBy must be one of: `name`, `isActive`, `updatedAt`, `createdAt`
+- SortOrder must be either `asc` or `desc`
+- `ids` in bulk delete must be valid UUIDs
+- Price list and supplier group IDs must exist when provided
+
+---
+
+## Error Responses
+
+### Common Error Codes
+
+| Code | Description                               |
+| ---- | ----------------------------------------- |
+| 400  | Bad Request - Invalid input or validation |
+| 403  | Forbidden - User does not have access     |
+| 404  | Not Found - Resource missing              |
+| 500  | Internal Server Error - Database or server error |
+
+### Error Response Format
+
+```json
+{
+  "message": "Error description",
+  "statusCode": 400
+}
+```
+
+
