@@ -24,16 +24,17 @@
     {
       "name": "j-store",
       "url": "j-store"
-    }
-   
-  ],
-  
-  "navigation": [
-    
+    },
     {
-      "group": "API Documentation",
+      "name": "j-optic",
+      "url": "j-optic"
+    }
+  ],
+
+  "navigation": [
+    {
+      "group": "j-store",
       "pages": [
-      
         "j-store/auth-api",
         "j-store/users-api",
         "j-store/app-config-api",
@@ -49,8 +50,11 @@
         "j-store/pos-profile-api",
         "j-store/pos-session-api",
         "j-store/pos-money-movement-api"
-     
       ]
+    },
+    {
+      "group": "J-optic",
+      "pages": ["j-optic/customer-api"]
     }
   ],
   "footerSocials": {
