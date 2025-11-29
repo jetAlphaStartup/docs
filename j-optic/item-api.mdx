@@ -1,0 +1,447 @@
+---
+title: "Item API"
+description: "Create and manage optical items with product information, specifications, and file uploads"
+---
+
+# Item API
+
+The Item API allows you to create optical items with their product information, specifications, status, and manage item records. This endpoint supports file uploads for item images and related documents.
+
+## Endpoint Details
+
+**Base URL:** `https://joptic.jethings.com`
+
+### Required Headers
+
+```
+x-store-id: <store_id>
+Authorization: Bearer <token>
+```
+
+---
+
+## Create Item
+
+### Endpoint
+
+**Endpoint:** `POST /item`  
+**Content-Type:** `application/json`
+
+### Request Structure
+
+The request body contains the item data with validation rules applied to each field.
+
+### Item Data Structure
+
+| Field        | Type              | Required | Description                                    |
+| ------------ | ----------------- | -------- | ---------------------------------------------- |
+| `productId`  | string (UUID)     | ✅ Yes   | UUID of the associated product                 |
+| `name`       | string            | ✅ Yes   | Name of the item                               |
+| `description`| string            | No       | Optional description of the item               |
+| `index`      | string            | ✅ Yes   | Index identifier for the item                  |
+| `colorType`  | string            | No       | Color type specification                       |
+| `cyl`        | string            | ✅ Yes   | Cylindrical power measurement                  |
+| `brand`      | string            | No       | Brand name of the item                         |
+| `coatings`   | string            | No       | Coating specifications                         |
+| `status`     | enum              | ✅ Yes   | Item status: "active" or "inactive"           |
+| `treatment`  | string            | ✅ Yes   | Treatment type for the item                    |
+| `sph`        | string            | ✅ Yes   | Spherical power measurement                    |
+| `diameter`   | string            | ✅ Yes   | Diameter measurement                           |
+| `material`   | string            | No       | Material specification                         |
+| `files`      | string[]          | No       | Array of file URLs or identifiers              |
+| `image`      | string            | No       | Image URL or identifier                        |
+
+### Status Enum Values
+
+The `status` field accepts one of the following values:
+
+- `"active"` - Item is active and available
+- `"inactive"` - Item is inactive and unavailable
+
+---
+
+## Create Item Examples
+
+### Example 1: Create Item with Full Data
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://j-optic.fly.dev/item \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "productId": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Premium Contact Lens",
+    "description": "High-quality daily contact lenses",
+    "index": "CL-001",
+    "colorType": "clear",
+    "cyl": "-0.50",
+    "brand": "Acme Optics",
+    "coatings": "UV protection, anti-glare",
+    "status": "active",
+    "treatment": "multifocal",
+    "sph": "-2.00",
+    "diameter": "14.2",
+    "material": "silicone hydrogel",
+    "files": [
+      "https://example.com/files/spec-sheet.pdf",
+      "https://example.com/files/instructions.pdf"
+    ],
+    "image": "https://example.com/images/lens-image.jpg"
+  }'
+```
+
+```javascript JavaScript
+const itemData = {
+  productId: "550e8400-e29b-41d4-a716-446655440000",
+  name: "Premium Contact Lens",
+  description: "High-quality daily contact lenses",
+  index: "CL-001",
+  colorType: "clear",
+  cyl: "-0.50",
+  brand: "Acme Optics",
+  coatings: "UV protection, anti-glare",
+  status: "active",
+  treatment: "multifocal",
+  sph: "-2.00",
+  diameter: "14.2",
+  material: "silicone hydrogel",
+  files: [
+    "https://example.com/files/spec-sheet.pdf",
+    "https://example.com/files/instructions.pdf",
+  ],
+  image: "https://example.com/images/lens-image.jpg",
+}
+
+const response = await fetch("https://j-optic.fly.dev/item", {
+  method: "POST",
+  headers: {
+    "x-store-id": "your-store-id",
+    Authorization: "Bearer <token>",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(itemData),
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://j-optic.fly.dev/item"
+
+item_data = {
+    "productId": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Premium Contact Lens",
+    "description": "High-quality daily contact lenses",
+    "index": "CL-001",
+    "colorType": "clear",
+    "cyl": "-0.50",
+    "brand": "Acme Optics",
+    "coatings": "UV protection, anti-glare",
+    "status": "active",
+    "treatment": "multifocal",
+    "sph": "-2.00",
+    "diameter": "14.2",
+    "material": "silicone hydrogel",
+    "files": [
+        "https://example.com/files/spec-sheet.pdf",
+        "https://example.com/files/instructions.pdf"
+    ],
+    "image": "https://example.com/images/lens-image.jpg"
+}
+
+response = requests.post(
+    url,
+    headers={
+        "x-store-id": "your-store-id",
+        "Authorization": "Bearer <token>",
+        "Content-Type": "application/json"
+    },
+    json=item_data
+)
+
+print(response.json())
+```
+
+</CodeGroup>
+
+**Success Response:**
+
+```json
+{
+  "success": true,
+  "message": "Item created successfully",
+  "data": {
+    "productId": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Premium Contact Lens",
+    "description": "High-quality daily contact lenses",
+    "index": "CL-001",
+    "colorType": "clear",
+    "cyl": "-0.50",
+    "brand": "Acme Optics",
+    "coatings": "UV protection, anti-glare",
+    "status": "active",
+    "treatment": "multifocal",
+    "sph": "-2.00",
+    "diameter": "14.2",
+    "material": "silicone hydrogel",
+    "files": [
+      "https://example.com/files/spec-sheet.pdf",
+      "https://example.com/files/instructions.pdf"
+    ],
+    "image": "https://example.com/images/lens-image.jpg"
+  }
+}
+```
+
+---
+
+### Example 2: Create Item with Minimal Required Data
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://j-optic.fly.dev/item \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "productId": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Standard Lens",
+    "index": "L-001",
+    "cyl": "-0.25",
+    "status": "active",
+    "treatment": "standard",
+    "sph": "-1.00",
+    "diameter": "14.0"
+  }'
+```
+
+```javascript JavaScript
+const itemData = {
+  productId: "550e8400-e29b-41d4-a716-446655440000",
+  name: "Standard Lens",
+  index: "L-001",
+  cyl: "-0.25",
+  status: "active",
+  treatment: "standard",
+  sph: "-1.00",
+  diameter: "14.0",
+}
+
+const response = await fetch("https://j-optic.fly.dev/item", {
+  method: "POST",
+  headers: {
+    "x-store-id": "your-store-id",
+    Authorization: "Bearer <token>",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(itemData),
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://j-optic.fly.dev/item"
+
+item_data = {
+    "productId": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Standard Lens",
+    "index": "L-001",
+    "cyl": "-0.25",
+    "status": "active",
+    "treatment": "standard",
+    "sph": "-1.00",
+    "diameter": "14.0"
+}
+
+response = requests.post(
+    url,
+    headers={
+        "x-store-id": "your-store-id",
+        "Authorization": "Bearer <token>",
+        "Content-Type": "application/json"
+    },
+    json=item_data
+)
+
+print(response.json())
+```
+
+</CodeGroup>
+
+---
+
+## Response Structures
+
+### Create Item Response
+
+```json
+{
+  "success": true,
+  "message": "Item created successfully",
+  "data": {
+    "productId": "string (UUID)",
+    "name": "string",
+    "description": "string (optional)",
+    "index": "string",
+    "colorType": "string (optional)",
+    "cyl": "string",
+    "brand": "string (optional)",
+    "coatings": "string (optional)",
+    "status": "active | inactive",
+    "treatment": "string",
+    "sph": "string",
+    "diameter": "string",
+    "material": "string (optional)",
+    "files": ["string"] (optional),
+    "image": "string (optional)"
+  }
+}
+```
+
+---
+
+## Error Responses
+
+### 400 Bad Request
+
+```json
+{
+  "statusCode": 400,
+  "message": [
+    "productId must be a UUID",
+    "name should not be empty",
+    "status must be one of the following values: active, inactive"
+  ],
+  "error": "Bad Request"
+}
+```
+
+### 403 Forbidden
+
+```json
+{
+  "statusCode": 403,
+  "message": "You do not have access to this store",
+  "error": "Forbidden"
+}
+```
+
+### 500 Internal Server Error
+
+```json
+{
+  "statusCode": 500,
+  "message": "Failed to create item",
+  "error": "Internal Server Error"
+}
+```
+
+---
+
+## Important Notes
+
+### Validation Rules
+
+<AccordionGroup>
+  <Accordion title="Required Fields">
+    The following fields are required and must be provided:
+    - `productId` (must be a valid UUID)
+    - `name` (non-empty string)
+    - `index` (non-empty string)
+    - `cyl` (non-empty string)
+    - `status` (must be "active" or "inactive")
+    - `treatment` (non-empty string)
+    - `sph` (non-empty string)
+    - `diameter` (non-empty string)
+  </Accordion>
+
+  <Accordion title="Optional Fields">
+    The following fields are optional:
+    - `description`
+    - `colorType`
+    - `brand`
+    - `coatings`
+    - `material`
+    - `files` (array of strings)
+    - `image`
+  </Accordion>
+
+  <Accordion title="Field Types">
+    - `productId`: Must be a valid UUID format
+    - `status`: Enum value - only "active" or "inactive" accepted
+    - `files`: Array of strings, each string validated
+    - All string fields are validated for non-empty values when required
+  </Accordion>
+</AccordionGroup>
+
+### Status Management
+
+<CardGroup cols={2}>
+  <Card title="Active Status" icon="check-circle">
+    Items with `"active"` status are available for use
+    <br/>
+    <code>Default for new items</code>
+  </Card>
+
+  <Card title="Inactive Status" icon="x-circle">
+    Items with `"inactive"` status are unavailable
+    <br/>
+    <code>Use for archived items</code>
+  </Card>
+</CardGroup>
+
+### Product Association
+
+- Each item must be associated with a valid product via `productId`
+- The `productId` must be a valid UUID that exists in the system
+- Invalid or non-existent product IDs will result in validation errors
+
+### File and Image Handling
+
+- `files`: Array of file URLs or identifiers for related documents
+- `image`: Single image URL or identifier for the item
+- Files and images should be uploaded separately and referenced by URL or identifier
+- Both fields accept string values (URLs or file identifiers)
+
+---
+
+## Summary
+
+<Steps>
+  <Step title="Authenticate">Obtain JWT token and ensure store access</Step>
+  <Step title="Prepare Item Data">
+    Structure JSON with required item information and specifications
+  </Step>
+  <Step title="Validate Data">
+    Ensure all required fields are present and valid (UUID format, enum values)
+  </Step>
+  <Step title="Create Item">POST request with JSON payload</Step>
+  <Step title="Handle Response">
+    Process success response with created item data
+  </Step>
+</Steps>
+
+This API provides comprehensive item management for optical stores, including product specifications, status tracking, and file associations.
+
+---
+
+<CardGroup cols={2}>
+  <Card
+    title="Customer API"
+    icon="users"
+    href="/j-optic/customer-api"
+  >
+    Create and manage optical customers
+  </Card>
+  <Card title="Store Management" icon="store" href="/j-store/stores-api">
+    Manage stores and permissions
+  </Card>
+</CardGroup>
+
