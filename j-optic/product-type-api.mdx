@@ -1,0 +1,497 @@
+---
+title: "Product Type API"
+description: "Manage product types and their required variants"
+---
+
+# Product Type API
+
+Audience: Frontend engineers managing product types and their required variants.
+
+- Base URL: `https://jethings-backend.fly.dev`
+- Content-Type: `application/json`
+
+### Conventions
+- All responses are JSON.
+- Errors follow standard HTTP status codes with `{ message: string }` body.
+- Unless noted, successful responses are `200 OK`.
+- All endpoints require authentication via Bearer token.
+
+---
+
+## Get All Product Types
+
+GET `/product-types`
+
+**Requires Authentication:** Bearer token in Authorization header
+
+Retrieve all product types in the system. 
+
+### Success Response
+
+```json
+{
+  "productTypes": [
+    {
+      "id": "pt_123456",
+      "code": "CLOTHING",
+      "nameEn": "Clothing",
+      "nameFr": "Vêtements",
+      "nameAr": "ملابس",
+      "description": "All types of clothing items",
+      "icon": "https://example.com/icons/clothing.png",
+      "isActive": true,
+      "createdAt": "2024-01-15T10:00:00.000Z",
+      "updatedAt": "2024-01-15T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `productTypes` | `array` | Array of product type objects |
+| `productTypes[].id` | `string` | Product type unique identifier |
+| `productTypes[].code` | `string` | Product type code |
+| `productTypes[].nameEn` | `string` | Product type name in English |
+| `productTypes[].nameFr` | `string` | Product type name in French |
+| `productTypes[].nameAr` | `string` | Product type name in Arabic |
+| `productTypes[].description` | `string \| null` | Product type description |
+| `productTypes[].icon` | `string \| null` | Icon URL for the product type |
+| `productTypes[].isActive` | `boolean` | Whether the product type is active |
+| `productTypes[].createdAt` | `string` | Creation timestamp (ISO 8601) |
+| `productTypes[].updatedAt` | `string` | Last update timestamp (ISO 8601) |
+
+### Possible Errors
+- `401 Unauthorized`: Missing or invalid authentication token
+- `500 Internal Server Error`: Server error
+
+### Example Request
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/product-types" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+---
+
+## Get Product Type Required Variants
+
+GET `/product-types/:productTypeId/required-variants`
+
+**Requires Authentication:** Bearer token in Authorization header
+
+Retrieve all required variants associated with a specific product type.
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `productTypeId` | `string` | Yes | Product type ID (UUID format) |
+
+### Success Response
+
+```json
+{
+  "productTypeId": "pt_123456",
+  "requiredVariants": [
+    {
+      "id": "rv_123456",
+      "variantName": "Size",
+      "allowedValues": ["S", "M", "L", "XL"]
+    },
+    {
+      "id": "rv_789012",
+      "variantName": "Color",
+      "allowedValues": ["Red", "Blue", "Green"]
+    }
+  ]
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `productTypeId` | `string` | The product type ID |
+| `requiredVariants` | `array` | Array of required variant objects |
+| `requiredVariants[].id` | `string` | Required variant unique identifier |
+| `requiredVariants[].variantName` | `string \| null` | Name of the variant (e.g., "Size", "Color") |
+| `requiredVariants[].allowedValues` | `string[] \| null` | Array of allowed values for this variant |
+
+### Possible Errors
+- `401 Unauthorized`: Missing or invalid authentication token
+- `404 Not Found`: Product type not found
+- `500 Internal Server Error`: Server error
+
+### Example Request
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/product-types/pt_123456/required-variants" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+---
+
+## Create Product Type with Variants
+
+POST `/product-types`
+
+**Requires Authentication:** Bearer token in Authorization header
+
+Create a new product type along with its required variants in a single transaction.
+
+### Request Body
+
+```json
+{
+  "code": "CLOTHING",
+  "nameEn": "Clothing",
+  "nameFr": "Vêtements",
+  "nameAr": "ملابس",
+  "description": "All types of clothing items",
+  "icon": "https://example.com/icons/clothing.png",
+  "requiredVariants": [
+    {
+      "variantName": "Size",
+      "allowedValues": ["S", "M", "L", "XL", "XXL"]
+    },
+    {
+      "variantName": "Color",
+      "allowedValues": ["Red", "Blue", "Green", "Black"]
+    }
+  ]
+}
+```
+
+### Request Body Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `code` | `string` | Yes | Product type code (unique identifier) |
+| `nameEn` | `string` | Yes | Product type name in English |
+| `nameFr` | `string` | Yes | Product type name in French |
+| `nameAr` | `string` | Yes | Product type name in Arabic |
+| `description` | `string` | No | Product type description |
+| `icon` | `string` | No | Icon URL for the product type |
+| `requiredVariants` | `array` | No | Array of required variants to create |
+
+#### Required Variant Object
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `variantName` | `string` | Yes | Name of the variant (e.g., "Size", "Color", "Material") |
+| `allowedValues` | `string[]` | No | Array of allowed values for this variant. If not provided, the variant accepts any value. |
+
+### Success Response
+
+```json
+{
+  "productType": {
+    "id": "pt_123456",
+    "code": "CLOTHING",
+    "nameEn": "Clothing",
+    "nameFr": "Vêtements",
+    "nameAr": "ملابس",
+    "description": "All types of clothing items",
+    "icon": "https://example.com/icons/clothing.png",
+    "isActive": true,
+    "createdAt": "2024-01-15T10:00:00.000Z",
+    "updatedAt": "2024-01-15T10:00:00.000Z"
+  },
+  "requiredVariants": [
+    {
+      "id": "rv_123456",
+      "variantName": "Size",
+      "allowedValues": ["S", "M", "L", "XL", "XXL"]
+    },
+    {
+      "id": "rv_789012",
+      "variantName": "Color",
+      "allowedValues": ["Red", "Blue", "Green", "Black"]
+    }
+  ]
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `productType` | `object` | The created product type object |
+| `requiredVariants` | `array` | Array of created required variant objects |
+
+### Possible Errors
+- `400 Bad Request`: Invalid request data or validation errors
+- `401 Unauthorized`: Missing or invalid authentication token
+- `409 Conflict`: Product type code already exists
+- `500 Internal Server Error`: Server error
+
+### Example Request
+
+```bash
+curl -X POST "https://jethings-backend.fly.dev/product-types" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -d '{
+    "code": "CLOTHING",
+    "nameEn": "Clothing",
+    "nameFr": "Vêtements",
+    "nameAr": "ملابس",
+    "description": "All types of clothing items",
+    "icon": "https://example.com/icons/clothing.png",
+    "requiredVariants": [
+      {
+        "variantName": "Size",
+        "allowedValues": ["S", "M", "L", "XL", "XXL"]
+      },
+      {
+        "variantName": "Color",
+        "allowedValues": ["Red", "Blue", "Green", "Black"]
+      }
+    ]
+  }'
+```
+
+---
+
+## Add Required Variants to Product Type
+
+POST `/product-types/:productTypeId/required-variants`
+
+**Requires Authentication:** Bearer token in Authorization header
+
+Add one or more required variants to an existing product type.
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `productTypeId` | `string` | Yes | Product type ID (UUID format) |
+
+### Request Body
+
+```json
+{
+  "requiredVariants": [
+    {
+      "variantName": "Material",
+      "allowedValues": ["Cotton", "Polyester", "Wool"]
+    },
+    {
+      "variantName": "Pattern",
+      "allowedValues": null
+    }
+  ]
+}
+```
+
+### Request Body Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `requiredVariants` | `array` | Yes | Array of required variants to add |
+
+#### Required Variant Object
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `variantName` | `string` | Yes | Name of the variant (e.g., "Size", "Color", "Material") |
+| `allowedValues` | `string[]` | No | Array of allowed values for this variant. If `null` or not provided, the variant accepts any value. |
+
+### Success Response
+
+```json
+{
+  "productTypeId": "pt_123456",
+  "requiredVariants": [
+    {
+      "id": "rv_345678",
+      "variantName": "Material",
+      "allowedValues": ["Cotton", "Polyester", "Wool"]
+    },
+    {
+      "id": "rv_901234",
+      "variantName": "Pattern",
+      "allowedValues": null
+    }
+  ]
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `productTypeId` | `string` | The product type ID |
+| `requiredVariants` | `array` | Array of created required variant objects |
+| `requiredVariants[].id` | `string` | Required variant unique identifier |
+| `requiredVariants[].variantName` | `string \| null` | Name of the variant |
+| `requiredVariants[].allowedValues` | `string[] \| null` | Array of allowed values (null if unrestricted) |
+
+### Possible Errors
+- `400 Bad Request`: Invalid request data or validation errors
+- `401 Unauthorized`: Missing or invalid authentication token
+- `404 Not Found`: Product type not found
+- `500 Internal Server Error`: Server error
+
+### Example Request
+
+```bash
+curl -X POST "https://jethings-backend.fly.dev/product-types/pt_123456/required-variants" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -d '{
+    "requiredVariants": [
+      {
+        "variantName": "Material",
+        "allowedValues": ["Cotton", "Polyester", "Wool"]
+      },
+      {
+        "variantName": "Pattern",
+        "allowedValues": null
+      }
+    ]
+  }'
+```
+
+---
+
+## DTOs Overview
+
+### CreateProductTypeWithVariantsDto
+
+```typescript
+{
+  code: string;
+  nameEn: string;
+  nameFr: string;
+  nameAr: string;
+  description?: string;
+  icon?: string;
+  requiredVariants?: CreateRequiredVariantDto[];
+}
+```
+
+### AddRequiredVariantToProductTypeDto
+
+```typescript
+{
+  requiredVariants: CreateRequiredVariantDto[];
+}
+```
+
+### CreateRequiredVariantDto
+
+```typescript
+{
+  variantName: string;
+  allowedValues?: string[] | null;
+}
+```
+
+### ProductTypeResponse
+
+```typescript
+{
+  id: string;
+  code: string;
+  nameEn: string;
+  nameFr: string;
+  nameAr: string;
+  description: string | null;
+  icon: string | null;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+### RequiredVariantResponse
+
+```typescript
+{
+  id: string;
+  variantName: string | null;
+  allowedValues: string[] | null;
+}
+```
+
+---
+
+## Business Logic
+
+### Product Type Creation Flow
+1. User creates a product type with multilingual names (English, French, Arabic)
+2. Product type is created with `isActive: true` by default
+3. Required variants can be created in the same transaction
+4. Each required variant can have optional allowed values to restrict input
+
+### Required Variants
+- Required variants define what attributes must be specified when creating products of this type
+- Examples: Size, Color, Material, Pattern, etc.
+- `allowedValues` can be:
+  - An array of specific values (e.g., `["S", "M", "L"]`) - restricts to these values only
+  - `null` or omitted - allows any value to be entered
+- Variants are linked to product types through a many-to-many relationship
+
+### Transaction Safety
+- Creating a product type with variants uses a database transaction
+- If any variant creation fails, the entire operation is rolled back
+- Adding variants to an existing product type also uses transactions for consistency
+
+### Use Cases
+- **Clothing**: Size, Color, Material
+- **Electronics**: Model, Storage Capacity, Color
+- **Food Items**: Weight, Unit, Expiry Date
+- **Custom Products**: Any custom attributes defined by the business
+
+---
+
+## Error Responses
+
+### Common Error Codes
+- `400 Bad Request`: Invalid request data or validation errors
+- `401 Unauthorized`: Missing or invalid authentication token
+- `404 Not Found`: Product type not found
+- `409 Conflict`: Product type code already exists
+- `500 Internal Server Error`: Server error
+
+### Error Response Format
+```json
+{
+  "message": "Error description",
+  "statusCode": 400
+}
+```
+
+### Example Error Responses
+
+#### 400 Bad Request
+```json
+{
+  "statusCode": 400,
+  "message": "Validation failed",
+  "error": "Bad Request"
+}
+```
+
+#### 404 Not Found
+```json
+{
+  "statusCode": 404,
+  "message": "Product type not found",
+  "error": "Not Found"
+}
+```
+
+#### 409 Conflict
+```json
+{
+  "statusCode": 409,
+  "message": "Product type with code 'CLOTHING' already exists",
+  "error": "Conflict"
+}
+```
+
