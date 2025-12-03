@@ -1,6 +1,6 @@
 ---
 title: "Product Type API"
-description: "Manage product types and their required variants"
+description: "Manage product types and their required variants with pagination, search, and filtering"
 ---
 
 # Product Type API
@@ -24,13 +24,24 @@ GET `/product-types`
 
 **Requires Authentication:** Bearer token in Authorization header
 
-Retrieve all product types in the system. 
+Retrieve all product types in the system with support for pagination, search, and filtering.
+
+### Query Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `page` | `number` | No | `1` | Page number for pagination |
+| `limit` | `number` | No | `10` | Number of records per page (max: 100) |
+| `search` | `string` | No | - | Search across nameEn, nameFr, nameAr, code, and description |
+| `isActive` | `boolean` | No | - | Filter by active status (`true` or `false`) |
+| `sortBy` | `string` | No | `createdAt` | Sort field: `createdAt`, `updatedAt`, `nameEn`, or `code` |
+| `sortOrder` | `string` | No | `desc` | Sort order: `asc` or `desc` |
 
 ### Success Response
 
 ```json
 {
-  "productTypes": [
+  "data": [
     {
       "id": "pt_123456",
       "code": "CLOTHING",
@@ -43,7 +54,15 @@ Retrieve all product types in the system.
       "createdAt": "2024-01-15T10:00:00.000Z",
       "updatedAt": "2024-01-15T10:00:00.000Z"
     }
-  ]
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 25,
+    "totalPages": 3,
+    "hasNext": true,
+    "hasPrev": false
+  }
 }
 ```
 
@@ -51,26 +70,70 @@ Retrieve all product types in the system.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `productTypes` | `array` | Array of product type objects |
-| `productTypes[].id` | `string` | Product type unique identifier |
-| `productTypes[].code` | `string` | Product type code |
-| `productTypes[].nameEn` | `string` | Product type name in English |
-| `productTypes[].nameFr` | `string` | Product type name in French |
-| `productTypes[].nameAr` | `string` | Product type name in Arabic |
-| `productTypes[].description` | `string \| null` | Product type description |
-| `productTypes[].icon` | `string \| null` | Icon URL for the product type |
-| `productTypes[].isActive` | `boolean` | Whether the product type is active |
-| `productTypes[].createdAt` | `string` | Creation timestamp (ISO 8601) |
-| `productTypes[].updatedAt` | `string` | Last update timestamp (ISO 8601) |
+| `data` | `array` | Array of product type objects |
+| `data[].id` | `string` | Product type unique identifier |
+| `data[].code` | `string` | Product type code |
+| `data[].nameEn` | `string` | Product type name in English |
+| `data[].nameFr` | `string` | Product type name in French |
+| `data[].nameAr` | `string` | Product type name in Arabic |
+| `data[].description` | `string \| undefined` | Product type description |
+| `data[].icon` | `string \| undefined` | Icon URL for the product type |
+| `data[].isActive` | `boolean` | Whether the product type is active |
+| `data[].createdAt` | `string` | Creation timestamp (ISO 8601) |
+| `data[].updatedAt` | `string` | Last update timestamp (ISO 8601) |
+| `pagination` | `object` | Pagination metadata |
+| `pagination.page` | `number` | Current page number |
+| `pagination.limit` | `number` | Number of items per page |
+| `pagination.total` | `number` | Total number of product types |
+| `pagination.totalPages` | `number` | Total number of pages |
+| `pagination.hasNext` | `boolean` | Whether there is a next page |
+| `pagination.hasPrev` | `boolean` | Whether there is a previous page |
 
 ### Possible Errors
 - `401 Unauthorized`: Missing or invalid authentication token
 - `500 Internal Server Error`: Server error
 
-### Example Request
+### Example Requests
+
+#### Basic Request (Default Pagination)
 
 ```bash
 curl -X GET "https://jethings-backend.fly.dev/product-types" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+#### With Pagination
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/product-types?page=2&limit=20" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+#### With Search
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/product-types?search=clothing" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+#### Filter by Active Status
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/product-types?isActive=true" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+#### With Sorting
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/product-types?sortBy=nameEn&sortOrder=asc" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"
+```
+
+#### Combined Filters
+
+```bash
+curl -X GET "https://jethings-backend.fly.dev/product-types?page=1&limit=10&search=lens&isActive=true&sortBy=code&sortOrder=asc" \
   -H "Authorization: Bearer $ACCESS_TOKEN"
 ```
 
@@ -360,6 +423,52 @@ curl -X POST "https://jethings-backend.fly.dev/product-types/pt_123456/required-
 
 ## DTOs Overview
 
+### GetProductTypesDto (Query Parameters)
+
+```typescript
+{
+  page?: number;           // Default: 1
+  limit?: number;          // Default: 10, Max: 100
+  search?: string;         // Search across nameEn, nameFr, nameAr, code, description
+  isActive?: boolean;      // Filter by active status
+  sortBy?: 'createdAt' | 'updatedAt' | 'nameEn' | 'code';  // Default: 'createdAt'
+  sortOrder?: 'asc' | 'desc';  // Default: 'desc'
+}
+```
+
+### PaginatedProductTypesResponseDto
+
+```typescript
+{
+  data: ProductTypeResponseDto[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+```
+
+### ProductTypeResponseDto
+
+```typescript
+{
+  id: string;
+  code: string;
+  nameEn: string;
+  nameFr: string;
+  nameAr: string;
+  description?: string;
+  icon?: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
 ### CreateProductTypeWithVariantsDto
 
 ```typescript
@@ -388,23 +497,6 @@ curl -X POST "https://jethings-backend.fly.dev/product-types/pt_123456/required-
 {
   variantName: string;
   allowedValues?: string[] | null;
-}
-```
-
-### ProductTypeResponse
-
-```typescript
-{
-  id: string;
-  code: string;
-  nameEn: string;
-  nameFr: string;
-  nameAr: string;
-  description: string | null;
-  icon: string | null;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
 }
 ```
 
