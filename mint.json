@@ -54,7 +54,7 @@
     },
     {
       "group": "J-optic",
-      "pages": ["j-optic/customer-api", "j-optic/item-api", "j-optic/brand-api", "j-optic/status-api", "j-optic/product-type-api"]
+      "pages": ["j-optic/customer-api", "j-optic/item-api", "j-optic/brand-api", "j-optic/status-api", "j-optic/product-type-api", "j-optic/product-group-api"]
     }
   ],
   "footerSocials": {

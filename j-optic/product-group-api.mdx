@@ -1,0 +1,104 @@
+---
+title: "Product Group API"
+description: "Retrieve all product groups with pagination, search, filtering, and sorting (not store scoped)"
+---
+
+# Product Group API
+
+The Product Group API returns a paginated list of product groups. This endpoint is not scoped to a store, so it does not require the `x-store-id` header.
+
+## Endpoint Details
+
+**Base URL:** `https://joptic.jethings.com`
+
+### Required Headers
+
+```
+Authorization: Bearer <token>
+```
+
+<Note>
+  No `x-store-id` header is needed because product groups are not store-scoped.
+</Note>
+
+---
+
+## Get All Product Groups
+
+### Endpoint
+
+**Endpoint:** `GET /product-groups`
+
+Retrieve all product groups with pagination, search, and sorting options.
+
+### Query Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `page` | number | No | `1` | Page number (minimum `1`) |
+| `limit` | number | No | `10` | Page size (clamped to `1-100`) |
+| `search` | string | No | - | Case-insensitive match on group name |
+| `isActive` | boolean | No | - | Filters by `status` (`true` -> `1`, `false` -> `0`) |
+| `sortBy` | string | No | `createdAt` | Allowed: `title`, `ref`, `createdAt`, `updatedAt`. Service maps `createdAt`, `updatedAt`, `name`; other values fallback to `createdAt`. |
+| `sortOrder` | string | No | `desc` | Sorting order: `asc` or `desc` |
+
+### Success Response
+
+```json
+{
+  "data": [
+    {
+      "id": "clx1a0z8e0001lga8s6s6x1a2",
+      "store": null,
+      "name": "1.56",
+      "status": 1,
+      "parent": null,
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 25,
+    "totalPages": 3,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `data` | array | List of product group objects |
+| `data[].id` | string | Product group ID |
+| `data[].store` | string \| null | Store reference (returned but not filtered) |
+| `data[].name` | string \| null | Product group name |
+| `data[].status` | number | Numeric status flag (`1` active, `0` inactive) |
+| `data[].parent` | string \| null | Parent group reference if applicable |
+| `data[].createdAt` | string \| null | Creation timestamp (ISO 8601) |
+| `data[].updatedAt` | string \| null | Last update timestamp (ISO 8601) |
+| `pagination` | object | Pagination metadata |
+| `pagination.page` | number | Current page |
+| `pagination.limit` | number | Page size |
+| `pagination.total` | number | Total number of groups |
+| `pagination.totalPages` | number | Total pages |
+| `pagination.hasNext` | boolean | Whether a next page exists |
+| `pagination.hasPrev` | boolean | Whether a previous page exists |
+
+### Behavior Notes
+
+- Pagination clamps `page` to `>= 1` and `limit` to `1-100`.
+- Sorting falls back to `createdAt` if `sortBy` is not mapped.
+- `store` is returned for compatibility but not used for filtering.
+- `status` uses numeric flags (`1` active, `0` inactive).
+
+### Example Request
+
+```bash
+curl -X GET "https://joptic.jethings.com/product-groups?page=1&limit=10&search=lens&isActive=true&sortBy=createdAt&sortOrder=desc" \
+  -H "Authorization: Bearer <token>"
+```
+
