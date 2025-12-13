@@ -1,0 +1,733 @@
+---
+title: "Price List API"
+description: "Create, read, update, and delete price lists for optical stores with buying and selling price management"
+---
+
+# Price List API Documentation
+
+This document describes the price list management endpoints for creating, reading, updating, and deleting price lists in the optical store system.
+
+## Endpoint Details
+
+**Base URL:** `https://joptic.jethings.com`
+
+### Required Headers
+
+```
+x-store-id: <store_id>
+Authorization: Bearer <token>
+```
+
+---
+
+## Authentication
+
+All endpoints require user authentication. The user ID is extracted from the JWT token (`req.user.sub`), and store access is validated via the `@StoreId()` decorator.
+
+## Rate Limiting
+
+Endpoints are protected with rate limiting:
+- **GET** endpoints: 60 requests per minute (long throttle)
+- **POST** endpoints: 10 requests per minute (medium throttle)
+- **PUT** endpoints: 20 requests per minute (medium throttle)
+- **DELETE** endpoints: 3 requests per minute (short throttle)
+
+---
+
+## Get All Price Lists
+
+Retrieve a paginated list of price lists for the current store.
+
+**Endpoint:** `GET /price-lists`
+
+### Query Parameters
+
+| Parameter   | Type      | Required | Default     | Description                          |
+|-------------|-----------|----------|-------------|--------------------------------------|
+| `search`    | `string`  | No       | —           | Search term to filter price lists by name |
+| `page`      | `number`  | No       | `1`         | Page number (min: 1)                 |
+| `limit`     | `number`  | No       | `10`        | Items per page (min: 1, max: 100)    |
+| `sortBy`    | `string`  | No       | `createdAt` | Field to sort by                     |
+| `sortOrder` | `string`  | No       | `desc`      | Sort order: "asc" or "desc"          |
+| `isActive`  | `boolean` | No       | —           | Filter by active status (currently not implemented) |
+
+### Success Response
+
+```json
+{
+  "data": [
+    {
+      "id": "price_list_123",
+      "storeId": "store_456",
+      "name": "Wholesale Prices",
+      "createdAt": "2024-01-15T10:30:00Z",
+      "customers": 0,
+      "isActive": true,
+      "itemsCount": 150
+    },
+    {
+      "id": "price_list_124",
+      "storeId": "store_456",
+      "name": "Retail Prices",
+      "createdAt": "2024-01-14T09:20:00Z",
+      "customers": 0,
+      "isActive": true,
+      "itemsCount": 200
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 5,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrev": false
+  }
+}
+```
+
+### Response Fields
+
+- `id` (string) - Unique identifier for the price list
+- `storeId` (string) - ID of the store that owns this price list
+- `name` (string) - Name of the price list
+- `createdAt` (Date) - Timestamp when the price list was created
+- `customers` (number) - Number of customers associated (currently always 0)
+- `isActive` (boolean) - Whether the price list is active
+- `itemsCount` (number) - Total number of items with prices in this list
+
+<Note>
+  Results are paginated for performance. Search is case-insensitive and matches price list names. Default sorting is by creation date (newest first).
+</Note>
+
+### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://joptic.jethings.com/price-lists?search=wholesale&page=1&limit=20&sortBy=name&sortOrder=asc" \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>"
+```
+
+```javascript JavaScript
+const params = new URLSearchParams({
+  search: "wholesale",
+  page: "1",
+  limit: "20",
+  sortBy: "name",
+  sortOrder: "asc"
+})
+
+const response = await fetch(`https://joptic.jethings.com/price-lists?${params}`, {
+  method: "GET",
+  headers: {
+    "x-store-id": "your-store-id",
+    Authorization: "Bearer <token>",
+  },
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://joptic.jethings.com/price-lists"
+
+params = {
+    "search": "wholesale",
+    "page": 1,
+    "limit": 20,
+    "sortBy": "name",
+    "sortOrder": "asc"
+}
+
+response = requests.get(
+    url,
+    headers={
+        "x-store-id": "your-store-id",
+        "Authorization": "Bearer <token>"
+    },
+    params=params
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+### Possible Errors
+
+- `401 Unauthorized` - Missing or invalid authentication token
+- `403 Forbidden` - User does not have access to the store
+- `500 Internal Server Error` - Server error
+
+---
+
+## Create Price List
+
+Create a new price list for the current store.
+
+**Endpoint:** `POST /price-lists`
+
+### Request Body
+
+| Field         | Type      | Required | Description                                    |
+|---------------|-----------|----------|------------------------------------------------|
+| `name`        | `string`  | ✅ Yes   | Name of the price list (max: 255)              |
+| `isBuying`    | `boolean` | No       | Whether this is a buying/purchase price list (default: false) |
+| `isSelling`   | `boolean` | No       | Whether this is a selling price list (default: false) |
+| `description` | `string`  | No       | Description of the price list (max: 1000)      |
+
+### Request Body Example
+
+```json
+{
+  "name": "Wholesale Buying Prices",
+  "isBuying": true,
+  "isSelling": false,
+  "description": "Price list for purchasing from suppliers"
+}
+```
+
+### Success Response
+
+```json
+{
+  "id": "price_list_123",
+  "storeId": "store_456",
+  "name": "Wholesale Buying Prices",
+  "createdAt": "2024-01-15T10:30:00Z",
+  "customers": 0,
+  "isActive": true,
+  "itemsCount": 0
+}
+```
+
+### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://joptic.jethings.com/price-lists \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Retail Selling Prices",
+    "isSelling": true,
+    "isBuying": false,
+    "description": "Standard retail prices for customers"
+  }'
+```
+
+```javascript JavaScript
+const priceListData = {
+  name: "Retail Selling Prices",
+  isSelling: true,
+  isBuying: false,
+  description: "Standard retail prices for customers"
+}
+
+const response = await fetch("https://joptic.jethings.com/price-lists", {
+  method: "POST",
+  headers: {
+    "x-store-id": "your-store-id",
+    Authorization: "Bearer <token>",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(priceListData),
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://joptic.jethings.com/price-lists"
+
+price_list_data = {
+    "name": "Retail Selling Prices",
+    "isSelling": True,
+    "isBuying": False,
+    "description": "Standard retail prices for customers"
+}
+
+response = requests.post(
+    url,
+    headers={
+        "x-store-id": "your-store-id",
+        "Authorization": "Bearer <token>",
+        "Content-Type": "application/json"
+    },
+    json=price_list_data
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+<Note>
+  A price list can be both buying and selling (set both flags to `true`). The price list is automatically set as active upon creation and automatically linked to the current store. User must have access to the store (validated via user-store relation).
+</Note>
+
+### Possible Errors
+
+- `400 Bad Request` - Validation errors (missing name, invalid field values)
+- `401 Unauthorized` - Missing or invalid authentication token
+- `403 Forbidden` - User does not have access to the store
+- `500 Internal Server Error` - Server error
+
+---
+
+## Update Price List
+
+Update an existing price list.
+
+**Endpoint:** `PUT /price-lists/:id`
+
+### Path Parameters
+
+| Parameter | Type     | Required | Description   |
+|-----------|----------|----------|---------------|
+| `id`      | `string` | ✅ Yes   | The price list ID |
+
+### Request Body
+
+All fields are optional (partial updates supported):
+
+| Field         | Type      | Required | Description                    |
+|---------------|-----------|----------|--------------------------------|
+| `name`        | `string`  | No       | New name for the price list (max: 255) |
+| `isActive`    | `boolean` | No       | Whether the price list should be active |
+| `isBuying`    | `boolean` | No       | Whether this is a buying price list |
+| `isSelling`   | `boolean` | No       | Whether this is a selling price list |
+| `description` | `string`  | No       | New description (max: 1000)    |
+
+### Request Body Example
+
+```json
+{
+  "name": "Updated Wholesale Prices",
+  "isActive": true,
+  "isBuying": true,
+  "isSelling": false,
+  "description": "Updated description"
+}
+```
+
+### Success Response
+
+```json
+{
+  "id": "price_list_123",
+  "storeId": "store_456",
+  "name": "Updated Wholesale Prices",
+  "createdAt": "2024-01-15T10:30:00Z",
+  "customers": 0,
+  "isActive": true,
+  "itemsCount": 150
+}
+```
+
+### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X PUT https://joptic.jethings.com/price-lists/price_list_123 \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Updated Name",
+    "isActive": false
+  }'
+```
+
+```javascript JavaScript
+const updateData = {
+  name: "Updated Name",
+  isActive: false
+}
+
+const response = await fetch("https://joptic.jethings.com/price-lists/price_list_123", {
+  method: "PUT",
+  headers: {
+    "x-store-id": "your-store-id",
+    Authorization: "Bearer <token>",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(updateData),
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://joptic.jethings.com/price-lists/price_list_123"
+
+update_data = {
+    "name": "Updated Name",
+    "isActive": False
+}
+
+response = requests.put(
+    url,
+    headers={
+        "x-store-id": "your-store-id",
+        "Authorization": "Bearer <token>",
+        "Content-Type": "application/json"
+    },
+    json=update_data
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+<Note>
+  Only provided fields are updated (partial updates supported). The `updatedAt` timestamp is automatically set. Price list must exist, otherwise returns 404.
+</Note>
+
+### Possible Errors
+
+- `400 Bad Request` - Validation errors
+- `401 Unauthorized` - Missing or invalid authentication token
+- `404 Not Found` - Price list with the given ID does not exist
+- `500 Internal Server Error` - Server error
+
+---
+
+## Delete Multiple Price Lists
+
+Delete one or more price lists by their IDs.
+
+**Endpoint:** `DELETE /price-lists`
+
+### Request Body
+
+| Field | Type            | Required | Description                       |
+|-------|-----------------|----------|-----------------------------------|
+| `ids` | `array<string>` | ✅ Yes   | Array of price list IDs to delete |
+
+### Request Body Example
+
+```json
+{
+  "ids": [
+    "price_list_123",
+    "price_list_124",
+    "price_list_125"
+  ]
+}
+```
+
+### Success Response
+
+```json
+{
+  "message": "Successfully deleted 3 price list(s)",
+  "deletedCount": 3
+}
+```
+
+### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X DELETE https://joptic.jethings.com/price-lists \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ids": ["price_list_123", "price_list_124"]
+  }'
+```
+
+```javascript JavaScript
+const deleteData = {
+  ids: ["price_list_123", "price_list_124"]
+}
+
+const response = await fetch("https://joptic.jethings.com/price-lists", {
+  method: "DELETE",
+  headers: {
+    "x-store-id": "your-store-id",
+    Authorization: "Bearer <token>",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(deleteData),
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://joptic.jethings.com/price-lists"
+
+delete_data = {
+    "ids": ["price_list_123", "price_list_124"]
+}
+
+response = requests.delete(
+    url,
+    headers={
+        "x-store-id": "your-store-id",
+        "Authorization": "Bearer <token>",
+        "Content-Type": "application/json"
+    },
+    json=delete_data
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+<Warning>
+  This is a bulk delete operation. Only valid price list IDs are deleted (invalid IDs are ignored). Returns the count of successfully deleted price lists. This operation is permanent and cannot be undone. Rate limited to 3 requests per minute for safety.
+</Warning>
+
+### Possible Errors
+
+- `400 Bad Request` - No IDs provided or empty array
+- `401 Unauthorized` - Missing or invalid authentication token
+- `404 Not Found` - No valid price lists found to delete
+- `500 Internal Server Error` - Server error
+
+---
+
+## Common Concepts
+
+### Price List Types
+
+Price lists can be categorized by their purpose:
+
+<AccordionGroup>
+  <Accordion title="Buying Price Lists" icon="shopping-cart">
+    **Buying Price Lists** (`isBuying: true`)
+    - Used for purchasing items from suppliers
+    - Represents the cost at which items are bought
+    - Example: "Wholesale Buying Prices", "Supplier Prices"
+  </Accordion>
+
+  <Accordion title="Selling Price Lists" icon="tag">
+    **Selling Price Lists** (`isSelling: true`)
+    - Used for selling items to customers
+    - Represents the price at which items are sold
+    - Example: "Retail Prices", "Customer Prices"
+  </Accordion>
+
+  <Accordion title="Both Types" icon="layers">
+    **Both** (`isBuying: true, isSelling: true`)
+    - Can be used for both buying and selling
+    - Less common but supported
+  </Accordion>
+</AccordionGroup>
+
+### Price List States
+
+<CardGroup cols={2}>
+  <Card title="Active" icon="check-circle">
+    **Active** (`isActive: true`)
+    <br/>
+    Price list is currently in use
+  </Card>
+
+  <Card title="Inactive" icon="x-circle">
+    **Inactive** (`isActive: false`)
+    <br/>
+    Price list is disabled but not deleted
+  </Card>
+</CardGroup>
+
+### Store Association
+
+- Each price list is associated with a specific store
+- Users can only access price lists for stores they have access to
+- Price lists are automatically linked to the store when created
+
+---
+
+## Error Responses
+
+All endpoints may return standard HTTP error codes:
+
+- `400 Bad Request` - Invalid request parameters or body
+- `403 Forbidden` - User does not have access to the store
+- `404 Not Found` - Resource not found (price list, store, etc.)
+- `429 Too Many Requests` - Rate limit exceeded
+- `500 Internal Server Error` - Server error
+
+### Error Response Format
+
+```json
+{
+  "statusCode": 404,
+  "message": "Price list not found",
+  "error": "Not Found"
+}
+```
+
+---
+
+## Usage Examples
+
+### Example 1: Get all price lists with pagination
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://joptic.jethings.com/price-lists?page=1&limit=10" \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>"
+```
+</CodeGroup>
+
+### Example 2: Search for price lists
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://joptic.jethings.com/price-lists?search=wholesale&page=1&limit=20" \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>"
+```
+</CodeGroup>
+
+### Example 3: Create a buying price list
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://joptic.jethings.com/price-lists \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Supplier Prices",
+    "isBuying": true,
+    "isSelling": false,
+    "description": "Prices from our main supplier"
+  }'
+```
+</CodeGroup>
+
+### Example 4: Create a selling price list
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://joptic.jethings.com/price-lists \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Retail Prices",
+    "isBuying": false,
+    "isSelling": true,
+    "description": "Standard retail prices"
+  }'
+```
+</CodeGroup>
+
+### Example 5: Update price list name and status
+
+<CodeGroup>
+```bash cURL
+curl -X PUT https://joptic.jethings.com/price-lists/price_list_123 \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Updated Retail Prices",
+    "isActive": true
+  }'
+```
+</CodeGroup>
+
+### Example 6: Delete multiple price lists
+
+<CodeGroup>
+```bash cURL
+curl -X DELETE https://joptic.jethings.com/price-lists \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ids": ["price_list_123", "price_list_124"]
+  }'
+```
+</CodeGroup>
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Naming Conventions">
+    - Use descriptive names that indicate the purpose (e.g., "Wholesale Buying", "Retail Selling")
+    - Include the price list type in the name for clarity
+  </Accordion>
+
+  <Accordion title="Price List Organization">
+    - Create separate price lists for buying and selling
+    - Use descriptions to provide additional context
+    - Keep inactive price lists for historical reference
+  </Accordion>
+
+  <Accordion title="Bulk Operations">
+    - Use pagination when fetching large lists
+    - Delete operations are rate-limited, so batch deletions carefully
+  </Accordion>
+
+  <Accordion title="Error Handling">
+    - Always check for 404 errors when updating/deleting
+    - Handle rate limit errors (429) with exponential backoff
+    - Validate request bodies before sending
+  </Accordion>
+
+  <Accordion title="Security">
+    - Store access is automatically validated
+    - Users can only manage price lists for stores they have access to
+    - Price list IDs are validated to prevent unauthorized access
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Related Endpoints
+
+After creating price lists, you can manage item prices using:
+
+- **Item Price Endpoints** (`/item-price`) - Set prices for individual items
+- **Lens Pricing Endpoints** (`/lens-pricing`) - Specialized endpoints for lens pricing by clusters
+
+<Info>
+  See the respective documentation files for more information about item pricing and lens pricing endpoints.
+</Info>
+
+---
+
+## Version History
+
+- **v1.0** - Initial implementation with CRUD operations
+- **v1.1** - Added `isBuying` and `isSelling` flags for price list categorization
+- **v1.2** - Added search functionality and improved pagination
+
+---
+
+<CardGroup cols={2}>
+  <Card
+    title="Item API"
+    icon="package"
+    href="/j-optic/item-api"
+  >
+    Create and manage optical items
+  </Card>
+  <Card
+    title="Customer API"
+    icon="users"
+    href="/j-optic/customer-api"
+  >
+    Create and manage optical customers
+  </Card>
+</CardGroup>

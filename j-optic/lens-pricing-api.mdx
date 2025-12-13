@@ -1,0 +1,763 @@
+---
+title: "Lens Pricing API"
+description: "Manage optical lens prices by clusters and axes with bulk pricing operations and table-optimized formats"
+---
+
+# Lens Pricing API Documentation
+
+This document describes the lens pricing endpoints for managing optical lens prices by clusters and axes.
+
+## Endpoint Details
+
+**Base URL:** `https://joptic.jethings.com`
+
+### Required Headers
+
+```
+x-store-id: <store_id>
+Authorization: Bearer <token>
+```
+
+---
+
+## Authentication
+
+All endpoints require store authentication via the `@StoreId()` decorator, which automatically extracts the store ID from the request context.
+
+---
+
+## Get All Lens Clusters
+
+Get all unique lens clusters available for the current store.
+
+**Endpoint:** `GET /lens-pricing/clusters`
+
+### Query Parameters
+
+None
+
+### Success Response
+
+```json
+{
+  "clusters": [
+    {
+      "name": "1.56 HMC",
+      "itemCount": 50
+    },
+    {
+      "name": "1.50 BB",
+      "itemCount": 30
+    },
+    {
+      "name": "1.67 HC",
+      "itemCount": 25
+    }
+  ]
+}
+```
+
+### Response Fields
+
+- `clusters` (array) - Array of cluster objects
+  - `name` (string) - Cluster name (e.g., "1.56 HMC")
+  - `itemCount` (number) - Total number of items in each cluster
+
+<Note>
+  Cluster names exclude color information (e.g., "1.50 PhGy BB" becomes "1.50 BB"). Clusters are sorted numerically. `itemCount` represents the total number of items in each cluster.
+</Note>
+
+### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://joptic.jethings.com/lens-pricing/clusters" \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>"
+```
+
+```javascript JavaScript
+const response = await fetch("https://joptic.jethings.com/lens-pricing/clusters", {
+  method: "GET",
+  headers: {
+    "x-store-id": "your-store-id",
+    Authorization: "Bearer <token>",
+  },
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://joptic.jethings.com/lens-pricing/clusters"
+
+response = requests.get(
+    url,
+    headers={
+        "x-store-id": "your-store-id",
+        "Authorization": "Bearer <token>"
+    }
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+### Possible Errors
+
+- `401 Unauthorized` - Missing or invalid authentication token
+- `403 Forbidden` - User does not have access to the store
+- `500 Internal Server Error` - Server error
+
+---
+
+## Get Items with Pricing (Paginated)
+
+Get all items with pricing for a specific cluster with pagination support.
+
+**Endpoint:** `GET /lens-pricing/items`
+
+### Query Parameters
+
+| Parameter | Type     | Required | Default | Description                                    |
+|-----------|----------|----------|---------|------------------------------------------------|
+| `cluster` | `string` | ✅ Yes   | —       | The lens cluster, e.g., "1.56 HMC"            |
+| `type`    | `string` | No       | `sell`  | Price list type: "sell" or "buy"               |
+| `page`    | `number` | No       | `1`     | Page number (min: 1)                           |
+| `limit`   | `number` | No       | `10`    | Items per page (min: 1, max: 100)              |
+
+### Success Response
+
+```json
+{
+  "cluster": "1.56 HMC",
+  "priceListType": "sell",
+  "priceList": {
+    "id": "price_list_123",
+    "name": "Selling Prices"
+  },
+  "data": [
+    {
+      "itemId": "item_123",
+      "itemName": "1.56 HMC +0.00 -0.00",
+      "sph": "+0.00",
+      "cyl": "-0.00",
+      "price": 800,
+      "priceId": "price_123",
+      "hasPrice": true,
+      "isActive": true
+    },
+    {
+      "itemId": "item_124",
+      "itemName": "1.56 HMC +0.25 -0.25",
+      "sph": "+0.25",
+      "cyl": "-0.25",
+      "price": 850,
+      "priceId": "price_124",
+      "hasPrice": true,
+      "isActive": true
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 50,
+    "totalPages": 3,
+    "hasNext": true,
+    "hasPrev": false
+  },
+  "itemsWithPrice": 45,
+  "itemsWithoutPrice": 5
+}
+```
+
+### Response Fields
+
+- `cluster` (string) - The cluster name
+- `priceListType` (string) - The price list type used ("sell" or "buy")
+- `priceList` (object) - Price list information
+  - `id` (string) - Price list ID
+  - `name` (string) - Price list name
+- `data` (array) - Array of items with pricing
+  - `itemId` (string) - Item ID
+  - `itemName` (string) - Full item name
+  - `sph` (string) - Sphere value with sign (e.g., "+0.25")
+  - `cyl` (string) - Cylinder value with sign (e.g., "-0.50")
+  - `price` (number | null) - Price value or null if not set
+  - `priceId` (string | null) - Price ID if price exists
+  - `hasPrice` (boolean) - Whether a price exists for the item
+  - `isActive` (boolean) - Whether the item is active
+- `pagination` (object) - Pagination metadata
+- `itemsWithPrice` (number) - Count of items with prices
+- `itemsWithoutPrice` (number) - Count of items without prices
+
+<Note>
+  Items are sorted by SPH and CYL values numerically. `sph` and `cyl` values include their signs (e.g., "+0.25", "-0.50"). `price` is `null` if no price is set for the item. `hasPrice` indicates whether a price exists for the item.
+</Note>
+
+### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://joptic.jethings.com/lens-pricing/items?cluster=1.56%20HMC&type=sell&page=1&limit=20" \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>"
+```
+
+```javascript JavaScript
+const params = new URLSearchParams({
+  cluster: "1.56 HMC",
+  type: "sell",
+  page: "1",
+  limit: "20"
+})
+
+const response = await fetch(`https://joptic.jethings.com/lens-pricing/items?${params}`, {
+  method: "GET",
+  headers: {
+    "x-store-id": "your-store-id",
+    Authorization: "Bearer <token>",
+  },
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://joptic.jethings.com/lens-pricing/items"
+
+params = {
+    "cluster": "1.56 HMC",
+    "type": "sell",
+    "page": 1,
+    "limit": 20
+}
+
+response = requests.get(
+    url,
+    headers={
+        "x-store-id": "your-store-id",
+        "Authorization": "Bearer <token>"
+    },
+    params=params
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+### Possible Errors
+
+- `400 Bad Request` - Missing or invalid cluster parameter
+- `401 Unauthorized` - Missing or invalid authentication token
+- `403 Forbidden` - User does not have access to the store
+- `404 Not Found` - Price list not found for the specified type
+- `500 Internal Server Error` - Server error
+
+---
+
+## Get Items as Table/Matrix Format
+
+Get items with pricing organized in a matrix format grouped by sign combinations. This endpoint is optimized for table rendering in the frontend.
+
+**Endpoint:** `GET /lens-pricing/items/table`
+
+### Query Parameters
+
+| Parameter | Type     | Required | Default | Description                         |
+|-----------|----------|----------|---------|-------------------------------------|
+| `cluster` | `string` | ✅ Yes   | —       | The lens cluster, e.g., "1.56 HMC"  |
+| `type`    | `string` | No       | `sell`  | Price list type: "sell" or "buy"    |
+
+### Success Response
+
+```json
+{
+  "cluster": "1.56 HMC",
+  "priceListType": "sell",
+  "priceList": {
+    "id": "price_list_123",
+    "name": "Selling Prices"
+  },
+  "matrices": {
+    "pp": {
+      "axes": {
+        "sph": [0, 0.25, 0.5, 0.75, 1, 1.25],
+        "cyl": [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5]
+      },
+      "prices": {
+        "0|0": 800,
+        "0|0.25": 800,
+        "0|0.5": 800,
+        "0|1.5": 1250,
+        "0.5|0.5": 800,
+        "0.5|0.75": 800,
+        "1.25|1.25": 800,
+        "1.25|1.5": 1250
+      }
+    },
+    "nn": {
+      "axes": {
+        "sph": [0, 0.25, 0.5, 0.75],
+        "cyl": [0, 0.25, 0.5]
+      },
+      "prices": {
+        "0|0": 900,
+        "0.5|0.5": 1000
+      }
+    },
+    "np": {
+      "axes": {
+        "sph": [0, 0.25, 0.5, 0.75],
+        "cyl": [0, 0.25, 0.5, 0.75]
+      },
+      "prices": {
+        "0|0": 850,
+        "0.75|0.75": 1100
+      }
+    }
+  }
+}
+```
+
+### Response Fields
+
+- `cluster` (string) - The cluster name
+- `priceListType` (string) - The price list type used ("sell" or "buy")
+- `priceList` (object) - Price list information
+- `matrices` (object) - Price matrices grouped by sign combinations
+  - `pp` (object) - Positive SPH (+) / Positive CYL (+) matrix
+  - `nn` (object) - Negative SPH (-) / Negative CYL (-) matrix
+  - `np` (object) - Negative SPH (-) / Positive CYL (+) matrix
+    - `axes` (object) - Available axis values
+      - `sph` (array) - Available SPH values (sorted numerically)
+      - `cyl` (array) - Available CYL values (sorted numerically)
+    - `prices` (object) - Price map using `"sph|cyl"` keys
+
+### Sign Combinations
+
+<CardGroup cols={3}>
+  <Card title="pp" icon="plus">
+    **Positive SPH (+) / Positive CYL (+)**
+    <br/>
+    Both values are positive
+  </Card>
+
+  <Card title="nn" icon="minus">
+    **Negative SPH (-) / Negative CYL (-)**
+    <br/>
+    Both values are negative
+  </Card>
+
+  <Card title="np" icon="layers">
+    **Negative SPH (-) / Positive CYL (+)**
+    <br/>
+    Mixed signs
+  </Card>
+</CardGroup>
+
+<Note>
+  Only non-empty matrices are included in the response. Price keys use the format `"sph|cyl"` with absolute values (e.g., `"0.25|0.5"`). Prices are `null` if not set for that item. Axes arrays are sorted numerically in ascending order. This format is optimized for rendering pricing tables in the frontend.
+</Note>
+
+### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://joptic.jethings.com/lens-pricing/items/table?cluster=1.56%20HMC&type=sell" \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>"
+```
+
+```javascript JavaScript
+const params = new URLSearchParams({
+  cluster: "1.56 HMC",
+  type: "sell"
+})
+
+const response = await fetch(`https://joptic.jethings.com/lens-pricing/items/table?${params}`, {
+  method: "GET",
+  headers: {
+    "x-store-id": "your-store-id",
+    Authorization: "Bearer <token>",
+  },
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://joptic.jethings.com/lens-pricing/items/table"
+
+params = {
+    "cluster": "1.56 HMC",
+    "type": "sell"
+}
+
+response = requests.get(
+    url,
+    headers={
+        "x-store-id": "your-store-id",
+        "Authorization": "Bearer <token>"
+    },
+    params=params
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+### Possible Errors
+
+- `400 Bad Request` - Missing or invalid cluster parameter
+- `401 Unauthorized` - Missing or invalid authentication token
+- `403 Forbidden` - User does not have access to the store
+- `404 Not Found` - Price list not found for the specified type
+- `500 Internal Server Error` - Server error
+
+---
+
+## Set/Update Item Prices by Cluster and Axes
+
+Set or update prices for multiple lens items in bulk. Uses database transactions and bulk operations for optimal performance.
+
+**Endpoint:** `POST /lens-pricing/items/prices`
+
+### Request Body
+
+| Field       | Type     | Required | Description                                                      |
+|-------------|----------|----------|------------------------------------------------------------------|
+| `cluster`   | `string` | ✅ Yes   | The lens cluster, e.g., "1.56 HMC"                               |
+| `type`      | `string` | ✅ Yes   | Price list type: "sell" or "buy"                                 |
+| `signCombo` | `string` | ✅ Yes   | Sign combination: "pp", "nn", or "np"                           |
+| `prices`    | `object` | ✅ Yes   | Map of `"sph|cyl"` to price value (keys use absolute values)    |
+
+### Request Body Example
+
+```json
+{
+  "cluster": "1.56 HMC",
+  "type": "sell",
+  "signCombo": "pp",
+  "prices": {
+    "0|0": 800,
+    "0.25|0.25": 850,
+    "0.5|0.5": 900,
+    "0.75|0.75": 950,
+    "1|1": 1000
+  }
+}
+```
+
+<Note>
+  Price keys use absolute values in the format `"sph|cyl"` (e.g., `"0.25|0.5"` means SPH=0.25, CYL=0.5). Values are numbers representing the price.
+</Note>
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "cluster": "1.56 HMC",
+  "signCombo": "pp",
+  "priceListId": "price_list_123",
+  "updated": 3,
+  "inserted": 2
+}
+```
+
+### Response Fields
+
+- `success` (boolean) - Indicates if the operation was successful
+- `cluster` (string) - The cluster that was updated
+- `signCombo` (string) - The sign combination that was updated
+- `priceListId` (string) - ID of the price list that was modified
+- `updated` (number) - Count of existing prices that were updated
+- `inserted` (number) - Count of new prices that were inserted
+
+### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://joptic.jethings.com/lens-pricing/items/prices \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cluster": "1.56 HMC",
+    "type": "sell",
+    "signCombo": "pp",
+    "prices": {
+      "0|0": 800,
+      "0.25|0.25": 850,
+      "0.5|0.5": 900
+    }
+  }'
+```
+
+```javascript JavaScript
+const priceData = {
+  cluster: "1.56 HMC",
+  type: "sell",
+  signCombo: "pp",
+  prices: {
+    "0|0": 800,
+    "0.25|0.25": 850,
+    "0.5|0.5": 900
+  }
+}
+
+const response = await fetch("https://joptic.jethings.com/lens-pricing/items/prices", {
+  method: "POST",
+  headers: {
+    "x-store-id": "your-store-id",
+    Authorization: "Bearer <token>",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(priceData),
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://joptic.jethings.com/lens-pricing/items/prices"
+
+price_data = {
+    "cluster": "1.56 HMC",
+    "type": "sell",
+    "signCombo": "pp",
+    "prices": {
+        "0|0": 800,
+        "0.25|0.25": 850,
+        "0.5|0.5": 900
+    }
+}
+
+response = requests.post(
+    url,
+    headers={
+        "x-store-id": "your-store-id",
+        "Authorization": "Bearer <token>",
+        "Content-Type": "application/json"
+    },
+    json=price_data
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+<Info>
+  This endpoint uses database transactions for atomicity and bulk operations for optimal performance. It's efficient for updating hundreds of prices at once with a single query to fetch existing prices and parallel updates using `Promise.all`.
+</Info>
+
+### Possible Errors
+
+- `400 Bad Request` - Validation errors (invalid cluster, type, or signCombo)
+- `401 Unauthorized` - Missing or invalid authentication token
+- `403 Forbidden` - User does not have access to the store
+- `404 Not Found` - No price list found for the specified type, or LENS product type not found
+- `500 Internal Server Error` - Server error
+
+---
+
+## Common Concepts
+
+### Cluster Format
+
+A cluster represents a lens type defined by:
+
+<AccordionGroup>
+  <Accordion title="Indice" icon="hash">
+    **Indice** - The refractive index
+    <br/>
+    Examples: "1.56", "1.50", "1.67"
+  </Accordion>
+
+  <Accordion title="Treatment" icon="sparkles">
+    **Treatment** - The lens treatment
+    <br/>
+    Examples: "HMC" (Hard Multi-Coating), "BB" (Blue Block), "HC" (Hard Coating)
+  </Accordion>
+</AccordionGroup>
+
+**Example:** `"1.56 HMC"` means:
+- Indice: 1.56
+- Treatment: HMC (Hard Multi-Coating)
+- Color is excluded from cluster names
+
+### Item Name Format
+
+Lens items follow this naming pattern:
+
+```
+{indice} [{color}] {treatment} {sph_sign}{sph_value} {cyl_sign}{cyl_value}
+```
+
+**Examples:**
+- `"1.56 HMC +0.00 -0.00"` - No color, SPH=+0.00, CYL=-0.00
+- `"1.50 PhGy BB +0.25 -0.50"` - Color=PhGy, SPH=+0.25, CYL=-0.50
+
+### Sign Combinations
+
+Lens prescriptions can have different sign combinations:
+
+<CardGroup cols={3}>
+  <Card title="pp" icon="plus">
+    Both SPH and CYL are positive (+)
+  </Card>
+
+  <Card title="nn" icon="minus">
+    Both SPH and CYL are negative (-)
+  </Card>
+
+  <Card title="np" icon="layers">
+    SPH is negative (-), CYL is positive (+)
+  </Card>
+</CardGroup>
+
+### Price Key Format
+
+In the table/matrix format, prices use keys in the format:
+
+```
+"{sph_absolute_value}|{cyl_absolute_value}"
+```
+
+**Examples:**
+- `"0|0"` - SPH=0, CYL=0 (regardless of sign)
+- `"0.25|0.5"` - SPH=0.25, CYL=0.5 (absolute values)
+- `"1.25|1.5"` - SPH=1.25, CYL=1.5 (absolute values)
+
+---
+
+## Error Responses
+
+All endpoints may return standard HTTP error codes:
+
+- `400 Bad Request` - Invalid request parameters or body
+- `401 Unauthorized` - Missing or invalid authentication token
+- `403 Forbidden` - User does not have access to the store
+- `404 Not Found` - Resource not found (price list, product type, etc.)
+- `500 Internal Server Error` - Server error
+
+### Error Response Format
+
+```json
+{
+  "statusCode": 404,
+  "message": "No sell price list found for this store",
+  "error": "Not Found"
+}
+```
+
+---
+
+## Usage Examples
+
+### Example 1: Get all clusters for a store
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://joptic.jethings.com/lens-pricing/clusters" \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>"
+```
+</CodeGroup>
+
+### Example 2: Get first page of items for a cluster
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://joptic.jethings.com/lens-pricing/items?cluster=1.56%20HMC&type=sell&page=1&limit=20" \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>"
+```
+</CodeGroup>
+
+### Example 3: Get pricing table for a cluster
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://joptic.jethings.com/lens-pricing/items/table?cluster=1.56%20HMC&type=sell" \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>"
+```
+</CodeGroup>
+
+### Example 4: Update prices for positive/positive combinations
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://joptic.jethings.com/lens-pricing/items/prices \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cluster": "1.56 HMC",
+    "type": "sell",
+    "signCombo": "pp",
+    "prices": {
+      "0|0": 800,
+      "0.25|0.25": 850,
+      "0.5|0.5": 900
+    }
+  }'
+```
+</CodeGroup>
+
+---
+
+## Performance Considerations
+
+<AccordionGroup>
+  <Accordion title="Pagination">
+    Always use pagination when fetching large lists of items to improve response times and reduce memory usage.
+  </Accordion>
+
+  <Accordion title="Bulk Updates">
+    The `POST /items/prices` endpoint is optimized for bulk operations. Use it to update multiple prices in a single request rather than making individual requests.
+  </Accordion>
+
+  <Accordion title="Caching">
+    Consider caching cluster lists as they change infrequently. This can significantly reduce API calls and improve performance.
+  </Accordion>
+
+  <Accordion title="Table Format">
+    Use the `/items/table` endpoint for frontend table rendering. This format is optimized for matrix-based displays and reduces client-side processing.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Version History
+
+- **v1.0** - Initial implementation with clusters, paginated items, table format, and bulk price updates
+
+---
+
+<CardGroup cols={2}>
+  <Card
+    title="Price List API"
+    icon="list"
+    href="/j-optic/price-list-api"
+  >
+    Create and manage price lists
+  </Card>
+  <Card
+    title="Item API"
+    icon="package"
+    href="/j-optic/item-api"
+  >
+    Create and manage optical items
+  </Card>
+</CardGroup>
