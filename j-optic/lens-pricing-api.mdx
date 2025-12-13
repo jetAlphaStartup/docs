@@ -272,6 +272,7 @@ Get items with pricing organized in a matrix format grouped by sign combinations
 |-----------|----------|----------|---------|-------------------------------------|
 | `cluster` | `string` | ✅ Yes   | —       | The lens cluster, e.g., "1.56 HMC"  |
 | `type`    | `string` | No       | `sell`  | Price list type: "sell" or "buy"    |
+| `format`  | `string` | No       | `record`| Response format: "record" or "array" |
 
 ### Success Response
 
@@ -425,20 +426,24 @@ print(response.json())
 
 ## Set/Update Item Prices by Cluster and Axes
 
-Set or update prices for multiple lens items in bulk. Uses database transactions and bulk operations for optimal performance.
+Set or update prices for multiple lens items in bulk. Uses database transactions and bulk operations for optimal performance. This endpoint supports **two different price formats** for maximum flexibility.
 
 **Endpoint:** `POST /lens-pricing/items/prices`
 
 ### Request Body
 
-| Field       | Type     | Required | Description                                                      |
-|-------------|----------|----------|------------------------------------------------------------------|
-| `cluster`   | `string` | ✅ Yes   | The lens cluster, e.g., "1.56 HMC"                               |
-| `type`      | `string` | ✅ Yes   | Price list type: "sell" or "buy"                                 |
-| `signCombo` | `string` | ✅ Yes   | Sign combination: "pp", "nn", or "np"                           |
-| `prices`    | `object` | ✅ Yes   | Map of `"sph|cyl"` to price value (keys use absolute values)    |
+The endpoint accepts two different price formats:
 
-### Request Body Example
+| Field       | Type            | Required | Description                                                      |
+|-------------|-----------------|----------|------------------------------------------------------------------|
+| `cluster`   | `string`        | ✅ Yes   | The lens cluster, e.g., "1.56 HMC"                               |
+| `type`      | `string`        | ✅ Yes   | Price list type: "sell" or "buy"                                 |
+| `signCombo` | `string`        | ✅ Yes   | Sign combination: "pp", "nn", or "np"                           |
+| `prices`    | `object` or `array` | ✅ Yes   | Price data in either Record format (object) or Array format (array) |
+
+### Format 1: Record Format (Legacy - Still Supported)
+
+The `prices` field is an object mapping `"sph|cyl"` keys to price values:
 
 ```json
 {
@@ -447,17 +452,55 @@ Set or update prices for multiple lens items in bulk. Uses database transactions
   "signCombo": "pp",
   "prices": {
     "0|0": 800,
-    "0.25|0.25": 850,
-    "0.5|0.5": 900,
-    "0.75|0.75": 950,
-    "1|1": 1000
+    "0|0.25": 800,
+    "0|1.5": 1250,
+    "0.5|0.5": 800,
+    "0.5|0.75": 800,
+    "1.25|1.25": 800,
+    "1.25|1.5": 1250
   }
 }
 ```
 
+**Field Descriptions:**
+- `prices` (object) - Map of `"sph|cyl"` to price value
+  - Key format: `"<sph>|<cyl>"` (e.g., `"0|0"`, `"0.25|0.5"`)
+  - Value: Price as a number
+
 <Note>
   Price keys use absolute values in the format `"sph|cyl"` (e.g., `"0.25|0.5"` means SPH=0.25, CYL=0.5). Values are numbers representing the price.
 </Note>
+
+### Format 2: Array Format (New - Recommended)
+
+The `prices` field is an array of price point objects:
+
+```json
+{
+  "cluster": "1.56 HMC",
+  "type": "sell",
+  "signCombo": "pp",
+  "prices": [
+    { "x": 0.0,  "y": 0.0,  "value": 800 },
+    { "x": 0.0,  "y": 0.25, "value": 800 },
+    { "x": 0.0,  "y": 1.5,  "value": 1250 },
+    { "x": 0.5,  "y": 0.5,  "value": 800 },
+    { "x": 0.5,  "y": 0.75, "value": 800 },
+    { "x": 1.25, "y": 1.25, "value": 800 },
+    { "x": 1.25, "y": 1.5,  "value": 1250 }
+  ]
+}
+```
+
+**Field Descriptions:**
+- `prices` (array) - Array of price point objects
+  - `x` (number) - Sphere (SPH) value
+  - `y` (number) - Cylinder (CYL) value
+  - `value` (number) - Price value
+
+<Info>
+  The endpoint automatically normalizes both formats internally. Array format is converted to Record format before processing, ensuring both formats produce identical results. Empty arrays or empty objects are allowed (will result in 0 updates/inserts).
+</Info>
 
 ### Success Response
 
@@ -481,7 +524,96 @@ Set or update prices for multiple lens items in bulk. Uses database transactions
 - `updated` (number) - Count of existing prices that were updated
 - `inserted` (number) - Count of new prices that were inserted
 
-### Example Request
+### Example Requests
+
+#### Example 1: Using Array Format (Recommended)
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://joptic.jethings.com/lens-pricing/items/prices \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cluster": "1.56 HMC",
+    "type": "sell",
+    "signCombo": "pp",
+    "prices": [
+      { "x": 0.0,  "y": 0.0,  "value": 800 },
+      { "x": 0.0,  "y": 0.25, "value": 800 },
+      { "x": 0.0,  "y": 1.5,  "value": 1250 },
+      { "x": 0.5,  "y": 0.5,  "value": 800 },
+      { "x": 0.5,  "y": 0.75, "value": 800 },
+      { "x": 1.25, "y": 1.25, "value": 800 },
+      { "x": 1.25, "y": 1.5,  "value": 1250 }
+    ]
+  }'
+```
+
+```javascript JavaScript
+const priceData = {
+  cluster: "1.56 HMC",
+  type: "sell",
+  signCombo: "pp",
+  prices: [
+    { x: 0.0,  y: 0.0,  value: 800 },
+    { x: 0.0,  y: 0.25, value: 800 },
+    { x: 0.0,  y: 1.5,  value: 1250 },
+    { x: 0.5,  y: 0.5,  value: 800 },
+    { x: 0.5,  y: 0.75, value: 800 },
+    { x: 1.25, y: 1.25, value: 800 },
+    { x: 1.25, y: 1.5,  value: 1250 }
+  ]
+}
+
+const response = await fetch("https://joptic.jethings.com/lens-pricing/items/prices", {
+  method: "POST",
+  headers: {
+    "x-store-id": "your-store-id",
+    Authorization: "Bearer <token>",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(priceData),
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://joptic.jethings.com/lens-pricing/items/prices"
+
+price_data = {
+    "cluster": "1.56 HMC",
+    "type": "sell",
+    "signCombo": "pp",
+    "prices": [
+        {"x": 0.0,  "y": 0.0,  "value": 800},
+        {"x": 0.0,  "y": 0.25, "value": 800},
+        {"x": 0.0,  "y": 1.5,  "value": 1250},
+        {"x": 0.5,  "y": 0.5,  "value": 800},
+        {"x": 0.5,  "y": 0.75, "value": 800},
+        {"x": 1.25, "y": 1.25, "value": 800},
+        {"x": 1.25, "y": 1.5,  "value": 1250}
+    ]
+}
+
+response = requests.post(
+    url,
+    headers={
+        "x-store-id": "your-store-id",
+        "Authorization": "Bearer <token>",
+        "Content-Type": "application/json"
+    },
+    json=price_data
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+#### Example 2: Using Record Format (Legacy)
 
 <CodeGroup>
 ```bash cURL
@@ -495,8 +627,12 @@ curl -X POST https://joptic.jethings.com/lens-pricing/items/prices \
     "signCombo": "pp",
     "prices": {
       "0|0": 800,
-      "0.25|0.25": 850,
-      "0.5|0.5": 900
+      "0|0.25": 800,
+      "0|1.5": 1250,
+      "0.5|0.5": 800,
+      "0.5|0.75": 800,
+      "1.25|1.25": 800,
+      "1.25|1.5": 1250
     }
   }'
 ```
@@ -508,8 +644,12 @@ const priceData = {
   signCombo: "pp",
   prices: {
     "0|0": 800,
-    "0.25|0.25": 850,
-    "0.5|0.5": 900
+    "0|0.25": 800,
+    "0|1.5": 1250,
+    "0.5|0.5": 800,
+    "0.5|0.75": 800,
+    "1.25|1.25": 800,
+    "1.25|1.5": 1250
   }
 }
 
@@ -537,8 +677,12 @@ price_data = {
     "signCombo": "pp",
     "prices": {
         "0|0": 800,
-        "0.25|0.25": 850,
-        "0.5|0.5": 900
+        "0|0.25": 800,
+        "0|1.5": 1250,
+        "0.5|0.5": 800,
+        "0.5|0.75": 800,
+        "1.25|1.25": 800,
+        "1.25|1.5": 1250
     }
 }
 
@@ -557,16 +701,69 @@ print(response.json())
 </CodeGroup>
 
 <Info>
-  This endpoint uses database transactions for atomicity and bulk operations for optimal performance. It's efficient for updating hundreds of prices at once with a single query to fetch existing prices and parallel updates using `Promise.all`.
+  This endpoint uses database transactions for atomicity and bulk operations for optimal performance. It's efficient for updating hundreds of prices at once with a single query to fetch existing prices and parallel updates using `Promise.all`. Prices are set per cluster and sign combination, and the endpoint automatically matches items based on their SPH/CYL values and signs.
 </Info>
+
+### Format Conversion
+
+The endpoint automatically normalizes both formats internally:
+
+- **Array Format** → Converted to Record format: `{x: 0.0, y: 0.0, value: 800}` → `{"0|0": 800}`
+- **Record Format** → Passed through unchanged
+
+The normalization happens in the controller, ensuring both formats produce identical results.
 
 ### Possible Errors
 
-- `400 Bad Request` - Validation errors (invalid cluster, type, or signCombo)
+- `400 Bad Request` - Validation errors (invalid cluster, type, signCombo, or request body structure)
 - `401 Unauthorized` - Missing or invalid authentication token
 - `403 Forbidden` - User does not have access to the store
 - `404 Not Found` - No price list found for the specified type, or LENS product type not found
 - `500 Internal Server Error` - Server error
+
+---
+
+## Migration Guide
+
+### For Frontend Teams
+
+The endpoint now supports two price formats. Here's how to migrate:
+
+**Old Format (Record) - Still Supported:**
+```json
+{
+  "prices": {
+    "0|0": 800,
+    "0.25|0.5": 850
+  }
+}
+```
+
+**New Format (Array) - Recommended:**
+```json
+{
+  "prices": [
+    { "x": 0.0, "y": 0.0, "value": 800 },
+    { "x": 0.25, "y": 0.5, "value": 850 }
+  ]
+}
+```
+
+<AccordionGroup>
+  <Accordion title="Benefits of Array Format">
+    - More intuitive structure (x, y coordinates)
+    - Easier to iterate and manipulate
+    - Better for form inputs and data grids
+    - More readable in code
+  </Accordion>
+
+  <Accordion title="Backward Compatibility">
+    - Both formats are fully supported
+    - No breaking changes
+    - Can migrate gradually
+    - Record format will continue to work indefinitely
+  </Accordion>
+</AccordionGroup>
 
 ---
 
@@ -613,15 +810,21 @@ Lens prescriptions can have different sign combinations:
 
 <CardGroup cols={3}>
   <Card title="pp" icon="plus">
-    Both SPH and CYL are positive (+)
+    **pp** (+sph/+cyl): Both sphere and cylinder values are positive
+    <br/>
+    Example items: "+0.00 +0.00", "+0.25 +0.50"
   </Card>
 
   <Card title="nn" icon="minus">
-    Both SPH and CYL are negative (-)
+    **nn** (-sph/-cyl): Both sphere and cylinder values are negative
+    <br/>
+    Example items: "-0.00 -0.00", "-1.00 -0.50"
   </Card>
 
   <Card title="np" icon="layers">
-    SPH is negative (-), CYL is positive (+)
+    **np** (-sph/+cyl): Sphere is negative, cylinder is positive
+    <br/>
+    Example items: "-0.00 +0.00", "-0.50 +0.25"
   </Card>
 </CardGroup>
 
@@ -694,7 +897,28 @@ curl -X GET "https://joptic.jethings.com/lens-pricing/items/table?cluster=1.56%2
 ```
 </CodeGroup>
 
-### Example 4: Update prices for positive/positive combinations
+### Example 4: Update prices using Array Format (Recommended)
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://joptic.jethings.com/lens-pricing/items/prices \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cluster": "1.56 HMC",
+    "type": "sell",
+    "signCombo": "pp",
+    "prices": [
+      { "x": 0.0, "y": 0.0, "value": 800 },
+      { "x": 0.25, "y": 0.25, "value": 850 },
+      { "x": 0.5, "y": 0.5, "value": 900 }
+    ]
+  }'
+```
+</CodeGroup>
+
+### Example 5: Update prices using Record Format (Legacy)
 
 <CodeGroup>
 ```bash cURL
@@ -742,6 +966,7 @@ curl -X POST https://joptic.jethings.com/lens-pricing/items/prices \
 ## Version History
 
 - **v1.0** - Initial implementation with clusters, paginated items, table format, and bulk price updates
+- **v1.1** - Added Array format support for price updates (Record format still supported for backward compatibility)
 
 ---
 
@@ -761,3 +986,4 @@ curl -X POST https://joptic.jethings.com/lens-pricing/items/prices \
     Create and manage optical items
   </Card>
 </CardGroup>
+
