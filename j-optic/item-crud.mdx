@@ -1,0 +1,457 @@
+---
+title: "Item CRUD API"
+description: "Create, update, delete, and retrieve lens items with variants and variant values management"
+---
+
+# Items API Documentation
+
+This document describes the endpoints for managing lens items in the system.
+
+## Base URL
+All endpoints are prefixed with `/items`
+
+## Authentication
+All endpoints require authentication and use the `@StoreId()` decorator to automatically extract the store ID from the authenticated user's context.
+
+---
+
+## 1. Bulk Delete Items
+
+Delete multiple items in a single request. Only items belonging to the authenticated user's store can be deleted.
+
+### Endpoint
+```
+DELETE /items/bulk
+```
+
+### Request Body
+```json
+{
+  "ids": [
+    "queq3f48oq10abytj3abk9jg",
+    "ch1mdjccxwfkj3r3ojlpymie",
+    "xljk6rf2fr9bsaq5m8q0orkl"
+  ]
+}
+```
+
+### Request Body Schema
+- `ids` (array of strings, required, min 1 item): Array of item IDs to delete
+  - Each ID must be a non-empty string
+
+### Response (Success)
+```json
+{
+  "message": "Successfully deleted 3 item(s)",
+  "deletedCount": 3
+}
+```
+
+### Response Schema
+- `message` (string): Success message indicating how many items were deleted
+- `deletedCount` (number): Number of items successfully deleted
+
+### Error Responses
+
+**400 Bad Request** - No item IDs provided
+```json
+{
+  "statusCode": 400,
+  "message": "No item IDs provided"
+}
+```
+
+**404 Not Found** - No valid items found to delete
+```json
+{
+  "statusCode": 404,
+  "message": "No valid items found to delete"
+}
+```
+
+### Notes
+- Only items that belong to the authenticated user's store will be deleted
+- Already deleted items (soft-deleted) are automatically excluded
+- Cascade deletes automatically handle related tables:
+  - Item variants
+  - Variants
+  - Variant values
+
+---
+
+## 2. Create Single Lens Item
+
+Create a single lens item with all its variants and variant values. This endpoint creates a complete lens item including the product, item, item variant, and all associated variant values.
+
+### Endpoint
+```
+POST /items/create-item
+```
+
+### Request Body
+```json
+{
+  "indice": "1.50",
+  "treatment": "BB",
+  "color": "PhGy",
+  "sph": {
+    "value": 0.00,
+    "sign": "+"
+  },
+  "cly": {
+    "value": 0.25,
+    "sign": "+"
+  }
+}
+```
+
+### Request Body Schema
+- `indice` (string, required): The lens index value (e.g., "1.50", "1.67")
+- `treatment` (string, required): The lens treatment type (e.g., "BB", "AR")
+- `color` (string, optional): The lens color/treatment variant (e.g., "PhGy", "Blue", "Green")
+- `sph` (object, required): Sphere value
+  - `value` (number, required): The sphere value (e.g., 0.00, 1.25, -2.50)
+  - `sign` (string, required): Either "+" or "-"
+- `cly` (object, required): Cylinder value
+  - `value` (number, required): The cylinder value (e.g., 0.25, 0.50, -0.75)
+  - `sign` (string, required): Either "+" or "-"
+
+### Response (Success)
+```json
+{
+  "id": "item_xyz789",
+  "name": "1.50 PhGy BB +0.00 +0.25",
+  "productId": "clx1234567890",
+  "isActive": true,
+  "createdAt": "2025-01-15T10:30:00.000Z",
+  "updatedAt": "2025-01-15T10:30:00.000Z"
+}
+```
+
+### Response Schema
+The response contains only essential item data for fast response:
+- `id` (string): The created item ID
+- `name` (string): The item name (automatically generated)
+- `productId` (string): The associated product ID
+- `isActive` (boolean): Whether the item is active
+- `createdAt` (Date): Creation timestamp
+- `updatedAt` (Date): Last update timestamp
+
+### Error Responses
+
+**404 Not Found** - Product type 'LENS' not found
+```json
+{
+  "statusCode": 404,
+  "message": "Product type with code 'LENS' not found"
+}
+```
+
+**400 Bad Request** - Validation errors
+```json
+{
+  "statusCode": 400,
+  "message": [
+    "indice must be a string",
+    "sph.value must be a number",
+    "sph.sign must be one of the following values: +, -"
+  ],
+  "error": "Bad Request"
+}
+```
+
+### Notes
+- The item name is automatically generated from the provided values in the format: `{indice}{color} {treatment} {sphSign}{sphValue} {clySign}{clyValue}`
+- If no color is provided, the color part is omitted from the name (format: `{indice} {treatment} {sphSign}{sphValue} {clySign}{clyValue}`)
+- Example with color: `1.50 PhGy BB +0.00 +0.25`
+- Example without color: `1.50 BB +0.00 +0.25`
+- All operations are performed within a database transaction
+- Variant values are automatically created for each variant
+- The response is simplified for performance, returning only essential item data
+
+---
+
+## 3. Update Lens Item
+
+Update an existing lens item. You can update any combination of the variant values (indice, treatment, color, sph, cly) and the item's active status.
+
+### Endpoint
+```
+PUT /items/:id
+```
+
+### Path Parameters
+- `id` (string, required): The ID of the item to update
+
+### Request Body Examples
+
+**Update only SPH value:**
+```json
+{
+  "sph": {
+    "value": 1.25,
+    "sign": "+"
+  }
+}
+```
+
+**Update multiple fields:**
+```json
+{
+  "indice": "1.67",
+  "treatment": "AR",
+  "color": "PhGy",
+  "sph": {
+    "value": 2.00,
+    "sign": "-"
+  },
+  "cly": {
+    "value": 0.50,
+    "sign": "+"
+  },
+  "isActive": true
+}
+```
+
+**Remove color (set to null or empty string):**
+```json
+{
+  "color": ""
+}
+```
+
+### Request Body Schema
+All fields are optional:
+- `indice` (string, optional): The lens index value
+- `treatment` (string, optional): The lens treatment type (e.g., "BB", "AR")
+- `color` (string, optional): The lens color/treatment variant (e.g., "PhGy", "Blue", "Green"). Set to empty string to remove color variant
+- `sph` (object, optional): Sphere value
+  - `value` (number, required if sph is provided)
+  - `sign` (string, required if sph is provided): Either "+" or "-"
+- `cly` (object, optional): Cylinder value
+  - `value` (number, required if cly is provided)
+  - `sign` (string, required if cly is provided): Either "+" or "-"
+- `isActive` (boolean, optional): Whether the item is active
+
+### Response (Success)
+```json
+{
+  "id": "item_xyz789",
+  "name": "1.67 PhGy AR -2.00 +0.50",
+  "productId": "clx1234567890",
+  "isActive": true,
+  "createdAt": "2025-01-15T10:30:00.000Z",
+  "updatedAt": "2025-01-15T11:45:00.000Z"
+}
+```
+
+### Response Schema
+Returns only essential item data:
+- `id` (string): The item ID
+- `name` (string): The updated item name
+- `productId` (string): The associated product ID
+- `isActive` (boolean): Whether the item is active
+- `createdAt` (Date): Creation timestamp
+- `updatedAt` (Date): Last update timestamp
+
+### Error Responses
+
+**404 Not Found** - Item not found or doesn't belong to store
+```json
+{
+  "statusCode": 404,
+  "message": "Item not found or does not belong to this store"
+}
+```
+
+**404 Not Found** - Item variant not found
+```json
+{
+  "statusCode": 404,
+  "message": "Item variant not found"
+}
+```
+
+**400 Bad Request** - Validation errors
+```json
+{
+  "statusCode": 400,
+  "message": [
+    "sph.value must be a number",
+    "sph.sign must be one of the following values: +, -"
+  ],
+  "error": "Bad Request"
+}
+```
+
+### Notes
+- Only items belonging to the authenticated user's store can be updated
+- When variant values are updated, the item name and product title are automatically recalculated
+- If the SPH or CYL sign changes, a new variant is created and the old one is deleted
+- If color is removed (set to empty string), the color variant is deleted
+- If color is added to an item that didn't have one, a new color variant is created
+- All updates are performed within a database transaction
+- If no variant values are being updated, only the `isActive` status can be changed
+
+---
+
+## 4. Get Item Variants
+
+Retrieve the variant values for a specific item. This endpoint returns the item's variant values in a structured format that matches the create/update DTO structure.
+
+### Endpoint
+```
+GET /items/:id/variants
+```
+
+### Path Parameters
+- `id` (string, required): The ID of the item to retrieve variants for
+
+### Response (Success)
+```json
+{
+  "itemId": "item_xyz789",
+  "indice": "1.50",
+  "treatment": "BB",
+  "color": "PhGy",
+  "sph": {
+    "value": 0.00,
+    "sign": "+"
+  },
+  "cly": {
+    "value": 0.25,
+    "sign": "+"
+  }
+}
+```
+
+### Response Schema
+- `itemId` (string): The item ID
+- `indice` (string): The lens index value
+- `treatment` (string): The lens treatment type
+- `color` (string, optional): The lens color/treatment variant (may be undefined if no color variant exists)
+- `sph` (object): Sphere value
+  - `value` (number): The sphere value
+  - `sign` (string): Either "+" or "-"
+- `cly` (object): Cylinder value
+  - `value` (number): The cylinder value
+  - `sign` (string): Either "+" or "-"
+
+### Error Responses
+
+**404 Not Found** - Item not found or doesn't belong to store
+```json
+{
+  "statusCode": 404,
+  "message": "Item not found or does not belong to this store"
+}
+```
+
+**404 Not Found** - Item variant not found
+```json
+{
+  "statusCode": 404,
+  "message": "Item variant not found"
+}
+```
+
+### Notes
+- Only items belonging to the authenticated user's store can be accessed
+- The `color` field will be `undefined` if the item doesn't have a color variant
+- All numeric values are parsed from the stored variant values
+- The sign for SPH and CYL is extracted from the variant name (e.g., "+ sph" or "- sph")
+
+---
+
+## Common Error Responses
+
+### 401 Unauthorized
+```json
+{
+  "statusCode": 401,
+  "message": "Unauthorized"
+}
+```
+
+### 500 Internal Server Error
+```json
+{
+  "statusCode": 500,
+  "message": "Internal server error"
+}
+```
+
+---
+
+## Example cURL Requests
+
+### Bulk Delete Items
+```bash
+curl -X DELETE http://localhost:3000/items/bulk \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "ids": [
+      "queq3f48oq10abytj3abk9jg",
+      "ch1mdjccxwfkj3r3ojlpymie"
+    ]
+  }'
+```
+
+### Create Single Item
+```bash
+curl -X POST http://localhost:3000/items/create-item \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "indice": "1.50",
+    "treatment": "BB",
+    "color": "PhGy",
+    "sph": {
+      "value": 0.00,
+      "sign": "+"
+    },
+    "cly": {
+      "value": 0.25,
+      "sign": "+"
+    }
+  }'
+```
+
+### Update Item
+```bash
+curl -X PUT http://localhost:3000/items/item_xyz789 \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -d '{
+    "sph": {
+      "value": 1.25,
+      "sign": "+"
+    },
+    "isActive": true
+  }'
+```
+
+### Get Item Variants
+```bash
+curl -X GET http://localhost:3000/items/item_xyz789/variants \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+---
+
+## Notes
+
+1. **Store Context**: All endpoints automatically use the authenticated user's store ID. You don't need to pass the store ID in the request.
+
+2. **Item Naming**: Item names are automatically generated from variant values in the format:
+   - With color: `{indice}{color} {treatment} {sphSign}{sphValue} {clySign}{clyValue}` (e.g., `1.50 PhGy BB +0.00 +0.25`)
+   - Without color: `{indice} {treatment} {sphSign}{sphValue} {clySign}{clyValue}` (e.g., `1.50 BB +0.00 +0.25`)
+   - Note: There is no space between indice and color when color is present
+
+3. **Transactions**: All operations that modify data are wrapped in database transactions to ensure data consistency.
+
+4. **Cascade Deletes**: When deleting items, related records (item variants, variants, variant values) are automatically deleted due to database cascade constraints.
+
+5. **Validation**: All request bodies are validated using class-validator decorators. Invalid requests will return 400 Bad Request with detailed error messages.
+
