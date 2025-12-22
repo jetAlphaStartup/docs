@@ -41,6 +41,7 @@
         "j-store/stores-api",
         "j-store/suppliers-api",
         "j-store/supplier-groups-api",
+        "j-store/warehouses-api",
         "j-store/customers-api",
         "j-store/price-list-api",
         "j-store/item-price-api",
@@ -54,7 +55,7 @@
     },
     {
       "group": "J-optic",
-      "pages": ["j-optic/customer-api", "j-optic/item-api", "j-optic/item-crud", "j-optic/item-variants-api", "j-optic/brand-api", "j-optic/status-api", "j-optic/product-type-api", "j-optic/product-group-api", "j-optic/price-list-api", "j-optic/lens-pricing-api", "j-optic/stock-reconciliation-api"]
+      "pages": ["j-optic/customer-api", "j-optic/item-api", "j-optic/item-crud", "j-optic/item-variants-api", "j-optic/brand-api", "j-optic/status-api", "j-optic/product-type-api", "j-optic/product-group-api", "j-optic/price-list-api", "j-optic/lens-pricing-api", "j-optic/stock-reconciliation-api", "j-optic/warehouses-api", "j-optic/suppliers-api", "j-optic/supplier-groups-api"]
     }
   ],
   "footerSocials": {

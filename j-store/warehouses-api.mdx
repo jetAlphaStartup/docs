@@ -1,0 +1,988 @@
+---
+title: "Warehouse API"
+description: "Warehouse management API for creating, retrieving, updating and deleting warehouses with address and contact information"
+---
+
+# Warehouse API
+
+The Warehouse API provides endpoints for managing warehouses and their hierarchical structure, addresses, and contact information within stores.
+
+<Note>
+All Warehouse API endpoints require authentication and a valid `x-store-id` header to identify the store context, unless stated otherwise.
+</Note>
+
+## Overview
+
+Warehouses can be:
+- Created with required address information and optional contact details
+- Organized in hierarchical structures using parent-child relationships
+- Filtered and sorted by various criteria
+- Retrieved in paginated lists or individually by ID
+- Updated with partial updates for flexible editing
+- Deleted when no longer needed
+
+## Endpoint Details
+
+**Base URL:** `https://jethings-backend.fly.dev`  
+**Content-Type:** `application/json`
+
+### Required Headers
+
+```
+Authorization: Bearer <token>
+x-store-id: <store_id>
+```
+
+<Warning>
+All routes require a valid `x-store-id` header. Users must have an active relation with the store to access its warehouses.
+</Warning>
+
+---
+
+## Get All Warehouses
+
+**GET** `/warehouses`
+
+Retrieve a paginated list of warehouses for the store that the authenticated user has access to.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                            |
+| ------------ | -------- | -------- | ------------------------------------------------------ |
+| `x-store-id` | `string` | Yes      | Store identifier (used by `@StoreId()` decorator)     |
+
+### Query Parameters
+
+| Parameter   | Type       | Required | Description                                                      | Default     |
+| ----------- | ---------- | -------- | ---------------------------------------------------------------- | ----------- |
+| `search`    | `string`   | No       | Filter by warehouse name (partial match)                          | —           |
+| `name`      | `string`   | No       | Filter by specific warehouse name (partial match)                | —           |
+| `parentId`  | `string`   | No       | Filter by parent warehouse ID (for hierarchical filtering)       | —           |
+| `isActive`  | `boolean`  | No       | Filter by active/inactive status                                 | —           |
+| `page`      | `number`   | No       | Page number (1-based)                                            | `1`         |
+| `limit`     | `number`   | No       | Number of items per page (1–100)                                 | `10`        |
+| `sortBy`    | `string`   | No       | Sort field (`id`, `name`, `isActive`, `updatedAt`, `createdAt`)   | `createdAt` |
+| `sortOrder` | `string`   | No       | Sort direction (`asc` or `desc`)                                 | `desc`      |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "data": [
+    {
+      "id": "warehouse_123",
+      "storeId": "store_456",
+      "parentId": null,
+      "name": "Main Warehouse",
+      "email": "warehouse@company.com",
+      "isActive": true,
+      "isGrouped": false,
+      "createdAt": "2024-01-15T10:30:00.000Z",
+      "updatedAt": "2024-01-15T10:30:00.000Z"
+    },
+    {
+      "id": "warehouse_124",
+      "storeId": "store_456",
+      "parentId": "warehouse_123",
+      "name": "North Branch",
+      "email": "north@company.com",
+      "isActive": true,
+      "isGrouped": true,
+      "createdAt": "2024-01-16T09:20:00.000Z",
+      "updatedAt": "2024-01-16T09:20:00.000Z"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 25,
+    "totalPages": 3,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
+
+### Response Fields
+
+#### Warehouse Object
+
+| Field        | Type      | Description                                          |
+| ------------ | --------- | ---------------------------------------------------- |
+| `id`         | `string`  | Unique warehouse ID                                   |
+| `storeId`    | `string`  | ID of the store that owns this warehouse             |
+| `parentId`   | `string?` | ID of the parent warehouse (for hierarchical structure) |
+| `name`       | `string`  | Warehouse display name                               |
+| `email`      | `string?` | Email address of the warehouse                       |
+| `isActive`   | `boolean` | Active status                                        |
+| `isGrouped`  | `boolean` | Whether the warehouse is grouped (has a parent)      |
+| `createdAt`  | `string`  | Creation timestamp (ISO 8601)                        |
+| `updatedAt`  | `string`  | Last update timestamp (ISO 8601)                     |
+
+#### Pagination Object
+
+| Field        | Type      | Description                    |
+| ------------ | --------- | ------------------------------ |
+| `page`       | `number`  | Current page number            |
+| `limit`      | `number`  | Number of items per page       |
+| `total`      | `number`  | Total number of records        |
+| `totalPages` | `number`  | Total pages available          |
+| `hasNext`    | `boolean` | Whether a next page exists     |
+| `hasPrev`    | `boolean` | Whether a previous page exists |
+
+### Possible Errors
+
+| Code | Message                                        |
+| ---- | ---------------------------------------------- |
+| 403  | Forbidden - User does not have access to store |
+| 500  | Internal Server Error                          |
+
+### Example Requests
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://jethings-backend.fly.dev/warehouses?page=1&limit=10" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here"
+```
+
+```javascript JavaScript
+const params = new URLSearchParams({
+  page: "1",
+  limit: "10",
+  sortBy: "name",
+  sortOrder: "asc"
+})
+
+const response = await fetch(`https://jethings-backend.fly.dev/warehouses?${params}`, {
+  method: "GET",
+  headers: {
+    "Authorization": "Bearer YOUR_ACCESS_TOKEN",
+    "x-store-id": "store_id_here"
+  }
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://jethings-backend.fly.dev/warehouses"
+
+params = {
+    "page": 1,
+    "limit": 10,
+    "sortBy": "name",
+    "sortOrder": "asc"
+}
+
+response = requests.get(
+    url,
+    headers={
+        "Authorization": "Bearer YOUR_ACCESS_TOKEN",
+        "x-store-id": "store_id_here"
+    },
+    params=params
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+Search warehouses by name:
+```bash
+curl -X GET "https://jethings-backend.fly.dev/warehouses?search=main&page=1&limit=20" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here"
+```
+
+Filter by parent warehouse:
+```bash
+curl -X GET "https://jethings-backend.fly.dev/warehouses?parentId=warehouse_123" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here"
+```
+
+---
+
+## Get Single Warehouse
+
+**GET** `/warehouses/:id`
+
+Retrieve a single warehouse by its ID.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Path Parameters
+
+| Parameter | Type     | Required | Description   |
+| --------- | -------- | -------- | ------------- |
+| `id`      | `string` | ✅ Yes   | Warehouse ID  |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "id": "warehouse_123",
+  "storeId": "store_456",
+  "parentId": null,
+  "name": "Main Warehouse",
+  "email": "warehouse@company.com",
+  "isActive": true,
+  "isGrouped": false,
+  "createdAt": "2024-01-15T10:30:00.000Z",
+  "updatedAt": "2024-01-15T10:30:00.000Z"
+}
+```
+
+### Response Fields
+
+Same as the warehouse object in the "Get All Warehouses" endpoint.
+
+### Possible Errors
+
+| Code | Message                    |
+| ---- | -------------------------- |
+| 404  | Not Found - Warehouse not found |
+| 500  | Internal Server Error      |
+
+### Example Requests
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://jethings-backend.fly.dev/warehouses/warehouse_123" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch("https://jethings-backend.fly.dev/warehouses/warehouse_123", {
+  method: "GET",
+  headers: {
+    "Authorization": "Bearer YOUR_ACCESS_TOKEN"
+  }
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://jethings-backend.fly.dev/warehouses/warehouse_123"
+
+response = requests.get(
+    url,
+    headers={
+        "Authorization": "Bearer YOUR_ACCESS_TOKEN"
+    }
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+---
+
+## Create Warehouse
+
+**POST** `/warehouses`
+
+Create a new warehouse with address information and optional contact details.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                            |
+| ------------ | -------- | -------- | ------------------------------------------------------ |
+| `x-store-id` | `string` | Yes      | Store identifier (used by `@StoreId()` decorator)     |
+
+### Request Body
+
+| Field          | Type      | Required | Description                                    |
+| -------------- | --------- | -------- | ---------------------------------------------- |
+| `name`         | `string`  | ✅ Yes   | Warehouse name (max 255 characters)           |
+| `parentId`     | `string`  | No       | ID of parent warehouse (for hierarchical structure) |
+| `street`       | `string`  | ✅ Yes   | Street address (max 500 characters)            |
+| `city`         | `string`  | ✅ Yes   | City (max 100 characters)                       |
+| `state`        | `string`  | ✅ Yes   | State or province (max 100 characters)        |
+| `country`      | `string`  | ✅ Yes   | Country (max 100 characters)                    |
+| `postalCode`   | `string`  | ✅ Yes   | Postal or ZIP code (max 20 characters)         |
+| `contactPerson`| `string`  | No       | Contact person name (max 255 characters)       |
+| `phone`        | `string`  | No       | Phone number (max 50 characters)               |
+| `email`        | `string`  | No       | Email address (max 255 characters, must be valid email) |
+
+### Request Body Example
+
+```json
+{
+  "name": "Main Warehouse",
+  "parentId": null,
+  "street": "123 Industrial Boulevard",
+  "city": "New York",
+  "state": "NY",
+  "country": "United States",
+  "postalCode": "10001",
+  "contactPerson": "John Smith",
+  "phone": "+1-555-123-4567",
+  "email": "warehouse@company.com"
+}
+```
+
+### Success Response
+
+**Status Code:** `201 Created`
+
+```json
+{
+  "id": "warehouse_123",
+  "storeId": "store_456",
+  "parentId": null,
+  "name": "Main Warehouse",
+  "email": "warehouse@company.com",
+  "isActive": true,
+  "isGrouped": false,
+  "createdAt": "2024-01-15T10:30:00.000Z",
+  "updatedAt": "2024-01-15T10:30:00.000Z"
+}
+```
+
+### Possible Errors
+
+| Code | Message                                        |
+| ---- | ---------------------------------------------- |
+| 400  | Bad Request - Validation errors                |
+| 403  | Forbidden - User does not have access to store |
+| 404  | Not Found - Store not found                    |
+| 500  | Internal Server Error                          |
+
+### Example Requests
+
+<CodeGroup>
+```bash cURL
+curl -X POST "https://jethings-backend.fly.dev/warehouses" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Main Warehouse",
+    "street": "123 Industrial Boulevard",
+    "city": "New York",
+    "state": "NY",
+    "country": "United States",
+    "postalCode": "10001",
+    "phone": "+1-555-123-4567",
+    "email": "warehouse@company.com"
+  }'
+```
+
+```javascript JavaScript
+const warehouseData = {
+  name: "Main Warehouse",
+  street: "123 Industrial Boulevard",
+  city: "New York",
+  state: "NY",
+  country: "United States",
+  postalCode: "10001",
+  phone: "+1-555-123-4567",
+  email: "warehouse@company.com"
+}
+
+const response = await fetch("https://jethings-backend.fly.dev/warehouses", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer YOUR_ACCESS_TOKEN",
+    "x-store-id": "store_id_here",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify(warehouseData)
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://jethings-backend.fly.dev/warehouses"
+
+warehouse_data = {
+    "name": "Main Warehouse",
+    "street": "123 Industrial Boulevard",
+    "city": "New York",
+    "state": "NY",
+    "country": "United States",
+    "postalCode": "10001",
+    "phone": "+1-555-123-4567",
+    "email": "warehouse@company.com"
+}
+
+response = requests.post(
+    url,
+    headers={
+        "Authorization": "Bearer YOUR_ACCESS_TOKEN",
+        "x-store-id": "store_id_here",
+        "Content-Type": "application/json"
+    },
+    json=warehouse_data
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+<Note>
+When creating a warehouse, the system automatically:
+1. Creates an address record with the provided address information
+2. Creates a contact record if phone, email, or contactPerson is provided
+3. Links the warehouse to the authenticated user's store
+4. Sets `isGrouped` to `true` if `parentId` is provided, otherwise `false`
+</Note>
+
+---
+
+## Update Warehouse
+
+**PUT** `/warehouses/:id`
+
+Update an existing warehouse. Supports partial updates - only provided fields will be updated.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Path Parameters
+
+| Parameter | Type     | Required | Description   |
+| --------- | -------- | -------- | ------------- |
+| `id`      | `string` | ✅ Yes   | Warehouse ID  |
+
+### Request Body
+
+All fields are optional (partial updates supported):
+
+| Field          | Type      | Required | Description                                    |
+| -------------- | --------- | -------- | ---------------------------------------------- |
+| `name`         | `string`  | No       | Warehouse name (max 255 characters)            |
+| `parentId`     | `string`  | No       | ID of parent warehouse (set to `null` to remove parent) |
+| `street`       | `string`  | No       | Street address (max 500 characters)            |
+| `city`         | `string`  | No       | City (max 100 characters)                      |
+| `state`        | `string`  | No       | State or province (max 100 characters)        |
+| `country`      | `string`  | No       | Country (max 100 characters)                    |
+| `postalCode`   | `string`  | No       | Postal or ZIP code (max 20 characters)         |
+| `phone`        | `string`  | No       | Phone number (max 50 characters)               |
+| `email`        | `string`  | No       | Email address (max 255 characters, must be valid email) |
+
+### Request Body Example
+
+```json
+{
+  "name": "Updated Warehouse Name",
+  "city": "Los Angeles",
+  "state": "CA",
+  "email": "newemail@company.com"
+}
+```
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "id": "warehouse_123",
+  "storeId": "store_456",
+  "parentId": null,
+  "name": "Updated Warehouse Name",
+  "email": "newemail@company.com",
+  "isActive": true,
+  "isGrouped": false,
+  "createdAt": "2024-01-15T10:30:00.000Z",
+  "updatedAt": "2024-01-15T11:45:00.000Z"
+}
+```
+
+### Possible Errors
+
+| Code | Message                                        |
+| ---- | ---------------------------------------------- |
+| 400  | Bad Request - Validation errors                |
+| 403  | Forbidden - User does not have access to warehouse |
+| 404  | Not Found - Warehouse not found                |
+| 500  | Internal Server Error                          |
+
+### Example Requests
+
+<CodeGroup>
+```bash cURL
+curl -X PUT "https://jethings-backend.fly.dev/warehouses/warehouse_123" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Updated Warehouse Name",
+    "city": "Los Angeles",
+    "state": "CA"
+  }'
+```
+
+```javascript JavaScript
+const updateData = {
+  name: "Updated Warehouse Name",
+  city: "Los Angeles",
+  state: "CA"
+}
+
+const response = await fetch("https://jethings-backend.fly.dev/warehouses/warehouse_123", {
+  method: "PUT",
+  headers: {
+    "Authorization": "Bearer YOUR_ACCESS_TOKEN",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify(updateData)
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://jethings-backend.fly.dev/warehouses/warehouse_123"
+
+update_data = {
+    "name": "Updated Warehouse Name",
+    "city": "Los Angeles",
+    "state": "CA"
+}
+
+response = requests.put(
+    url,
+    headers={
+        "Authorization": "Bearer YOUR_ACCESS_TOKEN",
+        "Content-Type": "application/json"
+    },
+    json=update_data
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+<Note>
+When updating a warehouse:
+- Only provided fields are updated (partial updates supported)
+- Address fields are updated in the linked address record
+- Contact fields are updated in the linked contact record, or a new contact record is created if one doesn't exist
+- Setting `parentId` to `null` removes the parent relationship
+- The `updatedAt` timestamp is automatically updated
+</Note>
+
+---
+
+## Delete Warehouse
+
+**DELETE** `/warehouses/:id`
+
+Delete a warehouse by its ID. This is a permanent deletion.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+### Path Parameters
+
+| Parameter | Type     | Required | Description   |
+| --------- | -------- | -------- | ------------- |
+| `id`      | `string` | ✅ Yes   | Warehouse ID  |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "id": "warehouse_123",
+  "storeId": "store_456",
+  "parentId": null,
+  "name": "Main Warehouse",
+  "email": "warehouse@company.com",
+  "isActive": true,
+  "isGrouped": false,
+  "createdAt": "2024-01-15T10:30:00.000Z",
+  "updatedAt": "2024-01-15T10:30:00.000Z"
+}
+```
+
+### Possible Errors
+
+| Code | Message                                        |
+| ---- | ---------------------------------------------- |
+| 403  | Forbidden - User does not have access to warehouse |
+| 404  | Not Found - Warehouse not found                |
+| 500  | Internal Server Error                          |
+
+### Example Requests
+
+<CodeGroup>
+```bash cURL
+curl -X DELETE "https://jethings-backend.fly.dev/warehouses/warehouse_123" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch("https://jethings-backend.fly.dev/warehouses/warehouse_123", {
+  method: "DELETE",
+  headers: {
+    "Authorization": "Bearer YOUR_ACCESS_TOKEN"
+  }
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://jethings-backend.fly.dev/warehouses/warehouse_123"
+
+response = requests.delete(
+    url,
+    headers={
+        "Authorization": "Bearer YOUR_ACCESS_TOKEN"
+    }
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+<Warning>
+This operation permanently deletes the warehouse. Make sure to verify the warehouse ID before deletion. Consider checking for dependent records (like inventory items) before deleting.
+</Warning>
+
+---
+
+## Business Logic
+
+### Warehouse Creation Flow
+
+<AccordionGroup>
+  <Accordion title="Address Management" icon="map-pin">
+    **Address Management**
+    
+    When creating a warehouse:
+    1. A new address record is always created with the provided address information
+    2. All address fields (street, city, state, country, postalCode) are required
+    3. The address is automatically linked to the warehouse via `addressId`
+    4. Address can be updated independently when updating the warehouse
+  </Accordion>
+
+  <Accordion title="Contact Management" icon="phone">
+    **Contact Management**
+    
+    Contact information is optional:
+    1. A contact record is only created if at least one contact field (phone, email, contactPerson) is provided
+    2. If contact is provided, it's automatically linked to the warehouse via `contactId`
+    3. When updating, if contact doesn't exist and contact fields are provided, a new contact record is created
+    4. Contact fields can be updated independently of other warehouse fields
+  </Accordion>
+
+  <Accordion title="Hierarchical Structure" icon="sitemap">
+    **Hierarchical Structure**
+    
+    Warehouses can be organized hierarchically:
+    1. Set `parentId` to create a child warehouse under a parent
+    2. `isGrouped` is automatically set to `true` if `parentId` exists, `false` otherwise
+    3. Useful for organizing warehouses by location, type, or business unit
+    4. Filter by `parentId` to get all child warehouses of a specific parent
+    5. Set `parentId` to `null` to remove the parent relationship
+  </Accordion>
+
+  <Accordion title="Store Access Validation" icon="shield">
+    **Store Access Validation**
+    
+    Access control is enforced:
+    1. User must have an active relation with the store to access its warehouses
+    2. Store access is validated on every request
+    3. Users can only create/update/delete warehouses for stores they have access to
+    4. Warehouse operations are scoped to the authenticated user's accessible stores
+  </Accordion>
+
+  <Accordion title="Partial Updates" icon="edit">
+    **Partial Updates**
+    
+    The update endpoint supports flexible partial updates:
+    1. Only provided fields are updated
+    2. Address fields can be updated independently
+    3. Contact fields can be updated independently
+    4. Warehouse fields (name, parentId) can be updated independently
+    5. This allows fine-grained control over what gets updated
+  </Accordion>
+</AccordionGroup>
+
+### Warehouse States
+
+<CardGroup cols={2}>
+  <Card title="Active Warehouse" icon="check-circle">
+    **Active** (`isActive: true`)
+    <br/>
+    Warehouse is currently in use and available for operations
+  </Card>
+
+  <Card title="Grouped Warehouse" icon="sitemap">
+    **Grouped** (`isGrouped: true`)
+    <br/>
+    Warehouse has a parent warehouse (part of hierarchical structure)
+  </Card>
+
+  <Card title="Standalone Warehouse" icon="building">
+    **Standalone** (`isGrouped: false`)
+    <br/>
+    Warehouse has no parent (top-level warehouse)
+  </Card>
+
+  <Card title="With Contact" icon="phone">
+    **Contact Information**
+    <br/>
+    Warehouse has associated contact details (phone, email)
+  </Card>
+</CardGroup>
+
+---
+
+## Error Responses
+
+All endpoints may return standard HTTP error codes:
+
+- `400 Bad Request` - Invalid request parameters or body
+- `403 Forbidden` - User does not have access to the store or warehouse
+- `404 Not Found` - Resource not found (warehouse, store, etc.)
+- `500 Internal Server Error` - Server error
+
+### Error Response Format
+
+```json
+{
+  "statusCode": 403,
+  "message": "You do not have access to this store",
+  "error": "Forbidden"
+}
+```
+
+### Common Error Scenarios
+
+**403 Forbidden - Store Access**
+```json
+{
+  "statusCode": 403,
+  "message": "You do not have access to this store"
+}
+```
+Occurs when the user doesn't have an active relation with the specified store.
+
+**404 Not Found - Warehouse**
+```json
+{
+  "statusCode": 404,
+  "message": "Warehouse not found"
+}
+```
+Occurs when the warehouse ID doesn't exist or doesn't belong to an accessible store.
+
+**400 Bad Request - Validation Error**
+```json
+{
+  "statusCode": 400,
+  "message": ["name must be a string", "street must be a string"],
+  "error": "Bad Request"
+}
+```
+Occurs when required fields are missing or data types are incorrect.
+
+---
+
+## Usage Examples
+
+### Example 1: Create a top-level warehouse
+
+<CodeGroup>
+```bash cURL
+curl -X POST "https://jethings-backend.fly.dev/warehouses" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Main Warehouse",
+    "street": "123 Industrial Boulevard",
+    "city": "New York",
+    "state": "NY",
+    "country": "United States",
+    "postalCode": "10001",
+    "email": "warehouse@company.com"
+  }'
+```
+</CodeGroup>
+
+### Example 2: Create a child warehouse
+
+<CodeGroup>
+```bash cURL
+curl -X POST "https://jethings-backend.fly.dev/warehouses" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "North Branch",
+    "parentId": "warehouse_123",
+    "street": "456 North Avenue",
+    "city": "Boston",
+    "state": "MA",
+    "country": "United States",
+    "postalCode": "02101",
+    "phone": "+1-555-987-6543"
+  }'
+```
+</CodeGroup>
+
+### Example 3: Get warehouses with filtering
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://jethings-backend.fly.dev/warehouses?parentId=warehouse_123&isActive=true&page=1&limit=20" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "x-store-id: store_id_here"
+```
+</CodeGroup>
+
+### Example 4: Update warehouse address only
+
+<CodeGroup>
+```bash cURL
+curl -X PUT "https://jethings-backend.fly.dev/warehouses/warehouse_123" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "street": "789 New Street",
+    "city": "Philadelphia",
+    "state": "PA",
+    "postalCode": "19101"
+  }'
+```
+</CodeGroup>
+
+### Example 5: Remove parent relationship
+
+<CodeGroup>
+```bash cURL
+curl -X PUT "https://jethings-backend.fly.dev/warehouses/warehouse_124" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "parentId": null
+  }'
+```
+</CodeGroup>
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Warehouse Organization">
+    - Use hierarchical structure to organize warehouses by location or business unit
+    - Create top-level warehouses for major locations
+    - Use child warehouses for branches or sub-locations
+    - Keep warehouse names descriptive and consistent
+  </Accordion>
+
+  <Accordion title="Address Management">
+    - Always provide complete address information for accurate location tracking
+    - Use consistent address formats across warehouses
+    - Update addresses when warehouses relocate
+    - Validate postal codes match the country format
+  </Accordion>
+
+  <Accordion title="Contact Information">
+    - Provide contact information for easy communication
+    - Keep email addresses up to date for notifications
+    - Include phone numbers for urgent matters
+    - Update contact information when personnel changes
+  </Accordion>
+
+  <Accordion title="Pagination">
+    - Use pagination when fetching large lists of warehouses
+    - Default limit of 10 is suitable for most use cases
+    - Maximum limit of 100 should be used sparingly
+    - Always check `hasNext` and `hasPrev` for navigation
+  </Accordion>
+
+  <Accordion title="Filtering and Search">
+    - Use `search` for general name searches
+    - Use `name` for specific name filtering
+    - Use `parentId` to get all child warehouses
+    - Combine filters for precise results
+  </Accordion>
+
+  <Accordion title="Partial Updates">
+    - Only send fields that need to be updated
+    - Update address and contact information independently when possible
+    - Use partial updates to avoid overwriting unchanged data
+    - Verify warehouse ID before updating
+  </Accordion>
+
+  <Accordion title="Deletion">
+    - Verify warehouse ID before deletion
+    - Check for dependent records (inventory, stock reconciliations) before deleting
+    - Consider the impact on child warehouses before deleting a parent
+    - Deletion is permanent and cannot be undone
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Related Endpoints
+
+Warehouses work in conjunction with other inventory management endpoints:
+
+- **Stock Reconciliation API** (`/stock-reconciliation`) - Reconcile inventory for specific warehouses
+- **Purchase Invoice API** (`/purchase-invoices`) - Create purchase invoices linked to warehouses
+- **Purchase Order API** (`/purchase-orders`) - Create purchase orders for warehouses
+
+<Info>
+  Warehouses are essential for inventory management. They represent physical locations where inventory is stored and managed. Use warehouses to organize your inventory by location and track stock movements.
+</Info>
+
+---
+
+## Summary
+
+| Endpoint                      | Method   | Description                                       |
+| ----------------------------- | -------- | ------------------------------------------------- |
+| `/warehouses`                 | `GET`    | Retrieve paginated list of warehouses             |
+| `/warehouses/:id`             | `GET`    | Retrieve a single warehouse by ID                 |
+| `/warehouses`                 | `POST`   | Create a new warehouse                            |
+| `/warehouses/:id`             | `PUT`    | Update an existing warehouse (partial updates)    |
+| `/warehouses/:id`             | `DELETE` | Delete a warehouse                                |
+
+---
+
+<CardGroup cols={2}>
+  <Card
+    title="Stock Reconciliation API"
+    icon="clipboard-check"
+    href="/j-optic/stock-reconciliation-api"
+  >
+    Reconcile inventory for warehouses
+  </Card>
+  <Card
+    title="Purchase Invoice API"
+    icon="file-invoice"
+    href="/j-store/purchase-invoice-api"
+  >
+    Create purchase invoices for warehouses
+  </Card>
+</CardGroup>
+

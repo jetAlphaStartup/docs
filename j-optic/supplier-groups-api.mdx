@@ -1,0 +1,1287 @@
+---
+title: "Supplier Group API"
+description: "Supplier group management API for organizing suppliers, assigning them to groups, and maintaining store-specific categorizations for optical stores"
+---
+
+# Supplier Group API
+
+The Supplier Group API enables optical stores to organize suppliers into groups, manage group memberships, and maintain store-specific group details.
+
+<Note>
+All Supplier Group API endpoints require authentication. Routes that operate in a store context also require a valid `x-store-id` header.
+</Note>
+
+## Overview
+
+Supplier groups can be:
+- Created per store with unique names
+- Listed with pagination, filtering, and sorting
+- Retrieved individually or as a simplified list
+- Updated for name or metadata
+- Deleted individually or in bulk (if empty)
+- Used to bulk assign or remove suppliers
+
+## Endpoint Details
+
+**Base URL:** `https://joptic.jethings.com`  
+**Content-Type:** `application/json`
+
+### Required Headers
+
+```
+x-store-id: <store_id>
+Authorization: Bearer <token>
+```
+
+<Warning>
+Endpoints that require `x-store-id` enforce store-level access control. Ensure the requesting user has an active relation with the store.
+</Warning>
+
+---
+
+## Create Supplier Group
+
+**POST** `/supplier-groups`
+
+Create a new supplier group scoped to the current store.
+
+**Requires Authentication:** Bearer token in Authorization header  
+**Requires Header:** `x-store-id`
+
+**Rate Limited:** 10 requests per minute
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                        |
+| ------------ | -------- | -------- | -------------------------------------------------- |
+| `x-store-id` | `string` | Yes      | Store identifier (used by `@StoreId()` decorator) |
+
+### Request Body
+
+| Field  | Type     | Required | Description                  |
+| ------ | -------- | -------- | ---------------------------- |
+| `name` | `string` | ✅ Yes   | Unique supplier group name (max 255 characters) |
+
+### Request Body Example
+
+```json
+{
+  "name": "Electronics Group"
+}
+```
+
+### Success Response
+
+**Status Code:** `201 Created`
+
+```json
+{
+  "id": "sgrp_abc123",
+  "name": "Electronics Group",
+  "supplierCount": 0,
+  "createdAt": "2025-11-03T10:00:00.000Z",
+  "updatedAt": "2025-11-03T10:00:00.000Z",
+  "deletedAt": null
+}
+```
+
+### Possible Errors
+
+| Code | Message                                                        |
+| ---- | -------------------------------------------------------------- |
+| 400  | Bad Request - Invalid input data                               |
+| 401  | Unauthorized                                                   |
+| 409  | Conflict - Supplier group with this name already exists        |
+| 500  | Internal Server Error                                          |
+
+### Example Requests
+
+<CodeGroup>
+```bash cURL
+curl -X POST "https://joptic.jethings.com/supplier-groups" \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{ "name": "Electronics Group" }'
+```
+
+```javascript JavaScript
+const groupData = {
+  name: "Electronics Group"
+}
+
+const response = await fetch("https://joptic.jethings.com/supplier-groups", {
+  method: "POST",
+  headers: {
+    "x-store-id": "your-store-id",
+    Authorization: "Bearer <token>",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(groupData),
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://joptic.jethings.com/supplier-groups"
+
+group_data = {
+    "name": "Electronics Group"
+}
+
+response = requests.post(
+    url,
+    headers={
+        "x-store-id": "your-store-id",
+        "Authorization": "Bearer <token>",
+        "Content-Type": "application/json"
+    },
+    json=group_data
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+<Note>
+Supplier group names must be unique within a store. If a group with the same name already exists for the store, a 409 Conflict error is returned.
+</Note>
+
+---
+
+## Get All Supplier Groups
+
+**GET** `/supplier-groups`
+
+Retrieve a paginated list of supplier groups for the current store with optional filters.
+
+**Requires Authentication:** Bearer token in Authorization header  
+**Requires Header:** `x-store-id`
+
+**Rate Limited:** 60 requests per minute
+
+### Required Headers
+
+| Key          | Value    | Required | Description                                        |
+| ------------ | -------- | -------- | -------------------------------------------------- |
+| `x-store-id` | `string` | Yes      | Store identifier (used by `@StoreId()` decorator) |
+
+### Query Parameters
+
+| Parameter   | Type      | Required | Description                                             | Default     |
+| ----------- | --------- | -------- | ------------------------------------------------------- | ----------- |
+| `search`    | `string`  | No       | Partial match for group name                            | —           |
+| `name`      | `string`  | No       | Partial match for group name (alias of search)          | —           |
+| `page`      | `number`  | No       | Page number (1-based)                                   | `1`         |
+| `limit`     | `number`  | No       | Items per page (1–100)                                  | `10`        |
+| `sortBy`    | `string`  | No       | Sort field (`id`, `name`, `updatedAt`, `createdAt`)     | `createdAt` |
+| `sortOrder` | `string`  | No       | Sort direction (`asc` or `desc`)                        | `desc`      |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "data": [
+    {
+      "id": "sgrp_abc123",
+      "name": "Electronics Group",
+      "supplierCount": 5,
+      "createdAt": "2025-10-01T09:00:00.000Z",
+      "updatedAt": "2025-10-15T12:30:00.000Z",
+      "deletedAt": null
+    },
+    {
+      "id": "sgrp_def456",
+      "name": "Local Suppliers",
+      "supplierCount": 3,
+      "createdAt": "2025-09-15T08:00:00.000Z",
+      "updatedAt": "2025-09-20T10:00:00.000Z",
+      "deletedAt": null
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 4,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrev": false
+  }
+}
+```
+
+### Response Fields
+
+#### SupplierGroup Object
+
+| Field            | Type     | Description                               |
+| ---------------- | -------- | ----------------------------------------- |
+| `id`             | `string` | Unique supplier group ID                  |
+| `name`           | `string` | Group name                                |
+| `supplierCount`  | `number` | Number of active suppliers in the group   |
+| `createdAt`      | `string` | Creation timestamp (ISO 8601)             |
+| `updatedAt`      | `string` | Last update timestamp (ISO 8601)          |
+| `deletedAt`      | `string?` | Deletion timestamp (if soft deleted)      |
+
+#### Pagination Object
+
+| Field        | Type      | Description                    |
+| ------------ | --------- | ------------------------------ |
+| `page`       | `number`  | Current page number            |
+| `limit`      | `number`  | Number of items per page       |
+| `total`      | `number`  | Total number of records        |
+| `totalPages` | `number`  | Total pages available          |
+| `hasNext`    | `boolean` | Whether a next page exists     |
+| `hasPrev`    | `boolean` | Whether a previous page exists |
+
+### Possible Errors
+
+| Code | Message                                        |
+| ---- | ---------------------------------------------- |
+| 401  | Unauthorized                                   |
+| 500  | Internal Server Error                          |
+
+### Example Requests
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://joptic.jethings.com/supplier-groups?page=1&limit=10" \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>"
+```
+
+```javascript JavaScript
+const params = new URLSearchParams({
+  page: "1",
+  limit: "10",
+  sortBy: "name",
+  sortOrder: "asc"
+})
+
+const response = await fetch(`https://joptic.jethings.com/supplier-groups?${params}`, {
+  method: "GET",
+  headers: {
+    "x-store-id": "your-store-id",
+    Authorization: "Bearer <token>",
+  },
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://joptic.jethings.com/supplier-groups"
+
+params = {
+    "page": 1,
+    "limit": 10,
+    "sortBy": "name",
+    "sortOrder": "asc"
+}
+
+response = requests.get(
+    url,
+    headers={
+        "x-store-id": "your-store-id",
+        "Authorization": "Bearer <token>"
+    },
+    params=params
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+Search by name:
+```bash
+curl -X GET "https://joptic.jethings.com/supplier-groups?search=electronics" \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>"
+```
+
+---
+
+## Get Supplier Groups List
+
+**GET** `/supplier-groups/list`
+
+Retrieve all supplier groups accessible to the authenticated user across stores they can access. This simplified list includes supplier count per group.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+**Rate Limited:** 60 requests per minute
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+[
+  {
+    "id": "sgrp_abc123",
+    "name": "Electronics Group",
+    "supplierCount": 5,
+    "createdAt": "2025-10-01T09:00:00.000Z",
+    "updatedAt": "2025-10-15T12:30:00.000Z",
+    "deletedAt": null
+  },
+  {
+    "id": "sgrp_def456",
+    "name": "Local Suppliers",
+    "supplierCount": 3,
+    "createdAt": "2025-09-15T08:00:00.000Z",
+    "updatedAt": "2025-09-20T10:00:00.000Z",
+    "deletedAt": null
+  }
+]
+```
+
+### Possible Errors
+
+| Code | Message                       |
+| ---- | ----------------------------- |
+| 401  | Unauthorized                  |
+| 500  | Internal Server Error         |
+
+### Example Requests
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://joptic.jethings.com/supplier-groups/list" \
+  -H "Authorization: Bearer <token>"
+```
+
+```javascript JavaScript
+const response = await fetch("https://joptic.jethings.com/supplier-groups/list", {
+  method: "GET",
+  headers: {
+    Authorization: "Bearer <token>",
+  },
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://joptic.jethings.com/supplier-groups/list"
+
+response = requests.get(
+    url,
+    headers={
+        "Authorization": "Bearer <token>"
+    }
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+<Note>
+This endpoint returns all supplier groups from stores the user has access to, sorted by name. It does not require the `x-store-id` header and is useful for dropdown lists or selection interfaces.
+</Note>
+
+---
+
+## Get Supplier Group by ID
+
+**GET** `/supplier-groups/:id`
+
+Retrieve a supplier group by ID.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+**Rate Limited:** 60 requests per minute
+
+### Path Parameters
+
+| Parameter | Type     | Required | Description             |
+| --------- | -------- | -------- | ----------------------- |
+| `id`      | `string` | ✅ Yes   | Supplier group ID       |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "id": "sgrp_abc123",
+  "name": "Electronics Group",
+  "supplierCount": 5,
+  "createdAt": "2025-10-01T09:00:00.000Z",
+  "updatedAt": "2025-10-15T12:30:00.000Z",
+  "deletedAt": null
+}
+```
+
+### Possible Errors
+
+| Code | Message                                |
+| ---- | -------------------------------------- |
+| 404  | Not Found - Supplier group not found   |
+| 500  | Internal Server Error                  |
+
+### Example Requests
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://joptic.jethings.com/supplier-groups/sgrp_abc123" \
+  -H "Authorization: Bearer <token>"
+```
+
+```javascript JavaScript
+const response = await fetch("https://joptic.jethings.com/supplier-groups/sgrp_abc123", {
+  method: "GET",
+  headers: {
+    Authorization: "Bearer <token>",
+  },
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://joptic.jethings.com/supplier-groups/sgrp_abc123"
+
+response = requests.get(
+    url,
+    headers={
+        "Authorization": "Bearer <token>"
+    }
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+---
+
+## Update Supplier Group
+
+**PUT** `/supplier-groups/:id`
+
+Update a supplier group's name.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+**Rate Limited:** 20 requests per minute
+
+### Path Parameters
+
+| Parameter | Type     | Required | Description             |
+| --------- | -------- | -------- | ----------------------- |
+| `id`      | `string` | ✅ Yes   | Supplier group ID       |
+
+### Request Body
+
+| Field  | Type     | Required | Description                |
+| ------ | -------- | -------- | -------------------------- |
+| `name` | `string` | No       | Updated supplier group name (max 255 characters) |
+
+### Request Body Example
+
+```json
+{
+  "name": "Electronics Group (Updated)"
+}
+```
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+Returns the updated SupplierGroup object (same shape as in "Get Supplier Group by ID").
+
+### Possible Errors
+
+| Code | Message                                                        |
+| ---- | -------------------------------------------------------------- |
+| 400  | Bad Request - Validation errors                                |
+| 404  | Not Found - Supplier group not found                           |
+| 409  | Conflict - Supplier group with this name already exists        |
+| 500  | Internal Server Error                                          |
+
+### Example Requests
+
+<CodeGroup>
+```bash cURL
+curl -X PUT "https://joptic.jethings.com/supplier-groups/sgrp_abc123" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{ "name": "Electronics Group (Updated)" }'
+```
+
+```javascript JavaScript
+const updateData = {
+  name: "Electronics Group (Updated)"
+}
+
+const response = await fetch("https://joptic.jethings.com/supplier-groups/sgrp_abc123", {
+  method: "PUT",
+  headers: {
+    Authorization: "Bearer <token>",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(updateData),
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://joptic.jethings.com/supplier-groups/sgrp_abc123"
+
+update_data = {
+    "name": "Electronics Group (Updated)"
+}
+
+response = requests.put(
+    url,
+    headers={
+        "Authorization": "Bearer <token>",
+        "Content-Type": "application/json"
+    },
+    json=update_data
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+<Note>
+If the new name conflicts with an existing supplier group name in the same store, a 409 Conflict error is returned. The name must be unique within the store scope.
+</Note>
+
+---
+
+## Delete Supplier Group
+
+**DELETE** `/supplier-groups/:id`
+
+Delete a supplier group. The group must not contain active suppliers.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+**Rate Limited:** 5 requests per minute
+
+<Warning>
+If the group still contains suppliers, deletion will fail with a conflict error. Reassign or remove suppliers before deleting.
+</Warning>
+
+### Path Parameters
+
+| Parameter | Type     | Required | Description             |
+| --------- | -------- | -------- | ----------------------- |
+| `id`      | `string` | ✅ Yes   | Supplier group ID       |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "message": "Supplier group deleted successfully"
+}
+```
+
+### Possible Errors
+
+| Code | Message                                                                 |
+| ---- | ----------------------------------------------------------------------- |
+| 404  | Not Found - Supplier group not found                                    |
+| 409  | Conflict - Supplier group has active suppliers                          |
+| 429  | Too Many Requests - Rate limit exceeded                                 |
+| 500  | Internal Server Error                                                   |
+
+### Example Requests
+
+<CodeGroup>
+```bash cURL
+curl -X DELETE "https://joptic.jethings.com/supplier-groups/sgrp_abc123" \
+  -H "Authorization: Bearer <token>"
+```
+
+```javascript JavaScript
+const response = await fetch("https://joptic.jethings.com/supplier-groups/sgrp_abc123", {
+  method: "DELETE",
+  headers: {
+    Authorization: "Bearer <token>",
+  },
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://joptic.jethings.com/supplier-groups/sgrp_abc123"
+
+response = requests.delete(
+    url,
+    headers={
+        "Authorization": "Bearer <token>"
+    }
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+---
+
+## Bulk Delete Supplier Groups
+
+**DELETE** `/supplier-groups`
+
+Delete multiple supplier groups by IDs. Each group must be empty (no active suppliers).
+
+**Requires Authentication:** Bearer token in Authorization header
+
+**Rate Limited:** 3 requests per minute
+
+### Request Body
+
+| Field | Type            | Required | Description                   |
+| ----- | --------------- | -------- | ----------------------------- |
+| `ids` | `string[]` UUID | ✅ Yes   | Supplier group IDs to delete  |
+
+### Request Body Example
+
+```json
+{
+  "ids": ["sgrp_123", "sgrp_456"]
+}
+```
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "message": "Successfully deleted 2 out of 2 supplier groups",
+  "deletedCount": 2
+}
+```
+
+### Possible Errors
+
+| Code | Message                                         |
+| ---- | ----------------------------------------------- |
+| 400  | No supplier group IDs provided                  |
+| 404  | Supplier group not found                        |
+| 409  | Conflict - Group has active suppliers           |
+| 429  | Too Many Requests - Rate limit exceeded         |
+| 500  | Internal Server Error                           |
+
+### Example Requests
+
+<CodeGroup>
+```bash cURL
+curl -X DELETE "https://joptic.jethings.com/supplier-groups" \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{ "ids": ["sgrp_123", "sgrp_456"] }'
+```
+
+```javascript JavaScript
+const deleteData = {
+  ids: ["sgrp_123", "sgrp_456"]
+}
+
+const response = await fetch("https://joptic.jethings.com/supplier-groups", {
+  method: "DELETE",
+  headers: {
+    "x-store-id": "your-store-id",
+    Authorization: "Bearer <token>",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(deleteData),
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://joptic.jethings.com/supplier-groups"
+
+delete_data = {
+    "ids": ["sgrp_123", "sgrp_456"]
+}
+
+response = requests.delete(
+    url,
+    headers={
+        "x-store-id": "your-store-id",
+        "Authorization": "Bearer <token>",
+        "Content-Type": "application/json"
+    },
+    json=delete_data
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+<Warning>
+This is a bulk delete operation. Only empty supplier groups (with no active suppliers) can be deleted. Groups with active suppliers will cause a 409 Conflict error. The operation processes each group individually and returns the count of successfully deleted groups. Rate limited to 3 requests per minute for safety.
+</Warning>
+
+---
+
+## Bulk Assign Suppliers to Group
+
+**POST** `/supplier-groups/:id/assign-suppliers`
+
+Assign multiple suppliers to a supplier group. Existing assignments are skipped.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+**Rate Limited:** 10 requests per minute
+
+### Path Parameters
+
+| Parameter | Type     | Required | Description             |
+| --------- | -------- | -------- | ----------------------- |
+| `id`      | `string` | ✅ Yes   | Supplier group ID       |
+
+### Request Body
+
+| Field          | Type            | Required | Description                         |
+| -------------- | --------------- | -------- | ----------------------------------- |
+| `supplierIds`  | `string[]` UUID | ✅ Yes   | Supplier IDs to assign to the group |
+
+### Request Body Example
+
+```json
+{
+  "supplierIds": ["sup_123", "sup_456", "sup_789"]
+}
+```
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "message": "Successfully assigned 2 out of 3 suppliers to group",
+  "assignedCount": 2
+}
+```
+
+### Possible Errors
+
+| Code | Message                                                              |
+| ---- | -------------------------------------------------------------------- |
+| 404  | Supplier group not found or supplier not found                       |
+| 429  | Too Many Requests - Rate limit exceeded                              |
+| 500  | Internal Server Error                                                |
+
+### Example Requests
+
+<CodeGroup>
+```bash cURL
+curl -X POST "https://joptic.jethings.com/supplier-groups/sgrp_abc123/assign-suppliers" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{ "supplierIds": ["sup_123", "sup_456"] }'
+```
+
+```javascript JavaScript
+const assignData = {
+  supplierIds: ["sup_123", "sup_456"]
+}
+
+const response = await fetch("https://joptic.jethings.com/supplier-groups/sgrp_abc123/assign-suppliers", {
+  method: "POST",
+  headers: {
+    Authorization: "Bearer <token>",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(assignData),
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://joptic.jethings.com/supplier-groups/sgrp_abc123/assign-suppliers"
+
+assign_data = {
+    "supplierIds": ["sup_123", "sup_456"]
+}
+
+response = requests.post(
+    url,
+    headers={
+        "Authorization": "Bearer <token>",
+        "Content-Type": "application/json"
+    },
+    json=assign_data
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+<Note>
+The operation processes each supplier individually. If a supplier is already assigned to the group, it is skipped. If a supplier doesn't exist, it is skipped. The response indicates how many suppliers were successfully assigned out of the total provided.
+</Note>
+
+---
+
+## Bulk Remove Suppliers from Group
+
+**POST** `/supplier-groups/:id/remove-suppliers`
+
+Remove multiple suppliers from a supplier group. Relations are marked inactive rather than deleted.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+**Rate Limited:** 10 requests per minute
+
+### Path Parameters
+
+| Parameter | Type     | Required | Description             |
+| --------- | -------- | -------- | ----------------------- |
+| `id`      | `string` | ✅ Yes   | Supplier group ID       |
+
+### Request Body
+
+| Field          | Type            | Required | Description                                     |
+| -------------- | --------------- | -------- | ----------------------------------------------- |
+| `supplierIds`  | `string[]` UUID | ✅ Yes   | Supplier IDs to remove from the group           |
+
+### Request Body Example
+
+```json
+{
+  "supplierIds": ["sup_123", "sup_456"]
+}
+```
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "message": "Successfully removed 2 out of 2 suppliers from group",
+  "removedCount": 2
+}
+```
+
+### Possible Errors
+
+| Code | Message                                                              |
+| ---- | -------------------------------------------------------------------- |
+| 404  | Supplier group not found or supplier not found                       |
+| 429  | Too Many Requests - Rate limit exceeded                              |
+| 500  | Internal Server Error                                                |
+
+### Example Requests
+
+<CodeGroup>
+```bash cURL
+curl -X POST "https://joptic.jethings.com/supplier-groups/sgrp_abc123/remove-suppliers" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{ "supplierIds": ["sup_123", "sup_456"] }'
+```
+
+```javascript JavaScript
+const removeData = {
+  supplierIds: ["sup_123", "sup_456"]
+}
+
+const response = await fetch("https://joptic.jethings.com/supplier-groups/sgrp_abc123/remove-suppliers", {
+  method: "POST",
+  headers: {
+    Authorization: "Bearer <token>",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(removeData),
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://joptic.jethings.com/supplier-groups/sgrp_abc123/remove-suppliers"
+
+remove_data = {
+    "supplierIds": ["sup_123", "sup_456"]
+}
+
+response = requests.post(
+    url,
+    headers={
+        "Authorization": "Bearer <token>",
+        "Content-Type": "application/json"
+    },
+    json=remove_data
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+<Note>
+The operation processes each supplier individually. If a supplier is not assigned to the group, it is skipped. The supplier-group relation is marked as inactive (soft delete) rather than being permanently deleted. The response indicates how many suppliers were successfully removed out of the total provided.
+</Note>
+
+---
+
+## Business Logic
+
+### Supplier Group Management
+
+<AccordionGroup>
+  <Accordion title="Store Scoping" icon="store">
+    **Store Scoping**
+    
+    Supplier groups are scoped to stores:
+    1. Each supplier group belongs to a specific store
+    2. Group names must be unique within a store (not globally)
+    3. Users can only access groups from stores they have access to
+    4. The `x-store-id` header determines the store context for operations
+  </Accordion>
+
+  <Accordion title="Unique Name Validation" icon="shield">
+    **Unique Name Validation**
+    
+    Group names are validated per store:
+    1. When creating a group, the name must be unique within the store
+    2. When updating a group, the new name must be unique within the store
+    3. If a duplicate name is found, a 409 Conflict error is returned
+    4. This allows the same group name to exist in different stores
+  </Accordion>
+
+  <Accordion title="Supplier Count Tracking" icon="users">
+    **Supplier Count Tracking**
+    
+    Supplier counts are automatically calculated:
+    1. `supplierCount` shows the number of active suppliers in the group
+    2. Count is calculated from active supplier-group relations
+    3. Count is updated in real-time when suppliers are assigned/removed
+    4. Used to determine if a group can be deleted (must be 0)
+  </Accordion>
+
+  <Accordion title="Deletion Restrictions" icon="trash">
+    **Deletion Restrictions**
+    
+    Groups with suppliers cannot be deleted:
+    1. Before deletion, the system checks if the group has active suppliers
+    2. If `supplierCount > 0`, deletion fails with 409 Conflict
+    3. You must remove all suppliers from the group before deletion
+    4. Use the bulk remove endpoint to clear suppliers first
+  </Accordion>
+
+  <Accordion title="Bulk Assignment" icon="user-plus">
+    **Bulk Assignment**
+    
+    Bulk assignment is fault-tolerant:
+    1. Each supplier is processed individually
+    2. Already-assigned suppliers are skipped (no error)
+    3. Non-existent suppliers are skipped (no error)
+    4. Only successfully assigned suppliers are counted
+    5. Response indicates success count vs total provided
+  </Accordion>
+
+  <Accordion title="Bulk Removal" icon="user-minus">
+    **Bulk Removal**
+    
+    Bulk removal uses soft delete:
+    1. Each supplier is processed individually
+    2. Not-assigned suppliers are skipped (no error)
+    3. Relations are marked inactive (not permanently deleted)
+    4. This preserves historical data for audit purposes
+    5. Response indicates success count vs total provided
+  </Accordion>
+</AccordionGroup>
+
+### Supplier Group States
+
+<CardGroup cols={2}>
+  <Card title="Empty Group" icon="folder">
+    **Empty** (`supplierCount: 0`)
+    <br/>
+    Group has no active suppliers and can be deleted
+  </Card>
+
+  <Card title="Active Group" icon="users">
+    **Active** (`supplierCount > 0`)
+    <br/>
+    Group contains suppliers and cannot be deleted
+  </Card>
+
+  <Card title="Store-Scoped" icon="store">
+    **Store-Scoped**
+    <br/>
+    Group belongs to a specific store
+  </Card>
+
+  <Card title="Unique Name" icon="tag">
+    **Unique Name**
+    <br/>
+    Name must be unique within the store
+  </Card>
+</CardGroup>
+
+---
+
+## Error Responses
+
+All endpoints may return standard HTTP error codes:
+
+- `400 Bad Request` - Invalid request parameters or body
+- `401 Unauthorized` - Missing or invalid authentication token
+- `403 Forbidden` - User does not have access to the store
+- `404 Not Found` - Resource not found (supplier group, supplier, etc.)
+- `409 Conflict` - Name duplicate or group has active suppliers
+- `429 Too Many Requests` - Rate limit exceeded
+- `500 Internal Server Error` - Server error
+
+### Error Response Format
+
+```json
+{
+  "statusCode": 409,
+  "message": "Supplier group with this name already exists",
+  "error": "Conflict"
+}
+```
+
+### Common Error Scenarios
+
+**409 Conflict - Duplicate Name**
+```json
+{
+  "statusCode": 409,
+  "message": "Supplier group with this name already exists"
+}
+```
+Occurs when trying to create or update a group with a name that already exists in the store.
+
+**409 Conflict - Group Has Suppliers**
+```json
+{
+  "statusCode": 409,
+  "message": "Cannot delete supplier group that has suppliers. Please reassign or delete suppliers first."
+}
+```
+Occurs when trying to delete a group that still has active suppliers.
+
+**404 Not Found - Supplier Group**
+```json
+{
+  "statusCode": 404,
+  "message": "Supplier group not found"
+}
+```
+Occurs when the supplier group ID doesn't exist.
+
+**400 Bad Request - Validation Error**
+```json
+{
+  "statusCode": 400,
+  "message": ["name must be a string", "ids must be an array"],
+  "error": "Bad Request"
+}
+```
+Occurs when required fields are missing or data types are incorrect.
+
+---
+
+## Usage Examples
+
+### Example 1: Create a supplier group
+
+<CodeGroup>
+```bash cURL
+curl -X POST "https://joptic.jethings.com/supplier-groups" \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{ "name": "Premium Lens Suppliers" }'
+```
+</CodeGroup>
+
+### Example 2: Get all supplier groups with pagination
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://joptic.jethings.com/supplier-groups?page=1&limit=20&sortBy=name&sortOrder=asc" \
+  -H "x-store-id: your-store-id" \
+  -H "Authorization: Bearer <token>"
+```
+</CodeGroup>
+
+### Example 3: Update supplier group name
+
+<CodeGroup>
+```bash cURL
+curl -X PUT "https://joptic.jethings.com/supplier-groups/sgrp_123" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{ "name": "Updated Group Name" }'
+```
+</CodeGroup>
+
+### Example 4: Assign suppliers to a group
+
+<CodeGroup>
+```bash cURL
+curl -X POST "https://joptic.jethings.com/supplier-groups/sgrp_123/assign-suppliers" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{ "supplierIds": ["sup_123", "sup_456", "sup_789"] }'
+```
+</CodeGroup>
+
+### Example 5: Remove suppliers from a group
+
+<CodeGroup>
+```bash cURL
+curl -X POST "https://joptic.jethings.com/supplier-groups/sgrp_123/remove-suppliers" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{ "supplierIds": ["sup_123", "sup_456"] }'
+```
+</CodeGroup>
+
+### Example 6: Delete empty supplier group
+
+<CodeGroup>
+```bash cURL
+curl -X DELETE "https://joptic.jethings.com/supplier-groups/sgrp_123" \
+  -H "Authorization: Bearer <token>"
+```
+</CodeGroup>
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Group Organization">
+    - Use descriptive group names that indicate the category or type
+    - Organize suppliers by product category, location, or business relationship
+    - Keep group names consistent across stores
+    - Use groups to filter and manage suppliers efficiently
+  </Accordion>
+
+  <Accordion title="Name Management">
+    - Ensure group names are unique within each store
+    - Use consistent naming conventions
+    - Update group names when business needs change
+    - Check for name conflicts before creating groups
+  </Accordion>
+
+  <Accordion title="Supplier Assignment">
+    - Use bulk assignment for efficiency when adding multiple suppliers
+    - Assign suppliers to groups during creation for better organization
+    - Use bulk removal to clear groups before deletion
+    - Monitor supplier counts to understand group usage
+  </Accordion>
+
+  <Accordion title="Pagination">
+    - Use pagination when fetching large lists of groups
+    - Default limit of 10 is suitable for most use cases
+    - Maximum limit of 100 should be used sparingly
+    - Always check `hasNext` and `hasPrev` for navigation
+  </Accordion>
+
+  <Accordion title="Deletion">
+    - Check `supplierCount` before attempting deletion
+    - Remove all suppliers from a group before deleting it
+    - Use bulk delete for multiple empty groups
+    - Verify group IDs before deletion
+    - Deletion is permanent and cannot be undone
+  </Accordion>
+
+  <Accordion title="Rate Limiting">
+    - DELETE endpoints are rate limited for safety
+    - Single delete: 5 requests per minute
+    - Bulk delete: 3 requests per minute
+    - Bulk operations: 10 requests per minute
+    - Implement retry logic with exponential backoff for rate limit errors
+  </Accordion>
+
+  <Accordion title="Bulk Operations">
+    - Bulk operations are fault-tolerant and skip invalid entries
+    - Check the response count to see how many operations succeeded
+    - Handle partial success scenarios appropriately
+    - Use bulk operations for efficiency when managing multiple items
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Related Endpoints
+
+Supplier groups work in conjunction with other inventory management endpoints:
+
+- **Supplier API** (`/suppliers`) - Manage suppliers that can be assigned to groups
+- **Price List API** (`/price-lists`) - Manage price lists for suppliers in groups
+
+<Info>
+  Supplier groups help organize suppliers by category, making it easier to manage vendor relationships and filter suppliers. Groups are store-scoped, allowing different stores to have their own organizational structure.
+</Info>
+
+---
+
+## Summary
+
+| Endpoint                                      | Method   | Description                                   |
+| --------------------------------------------- | -------- | --------------------------------------------- |
+| `/supplier-groups`                            | `POST`   | Create a new supplier group (rate: 10/min)    |
+| `/supplier-groups`                            | `GET`    | Paginated list of supplier groups (rate: 60/min) |
+| `/supplier-groups/list`                       | `GET`    | List supplier groups accessible to the user (rate: 60/min) |
+| `/supplier-groups/:id`                        | `GET`    | Retrieve a supplier group by ID (rate: 60/min) |
+| `/supplier-groups/:id`                        | `PUT`    | Update a supplier group (rate: 20/min)        |
+| `/supplier-groups/:id`                        | `DELETE` | Delete a supplier group (rate: 5/min)         |
+| `/supplier-groups`                            | `DELETE` | Bulk delete supplier groups (rate: 3/min)     |
+| `/supplier-groups/:id/assign-suppliers`       | `POST`   | Bulk assign suppliers to a group (rate: 10/min) |
+| `/supplier-groups/:id/remove-suppliers`       | `POST`   | Bulk remove suppliers from a group (rate: 10/min) |
+
+---
+
+<CardGroup cols={2}>
+  <Card
+    title="Supplier API"
+    icon="truck"
+    href="/j-optic/suppliers-api"
+  >
+    Manage suppliers and assignments
+  </Card>
+  <Card
+    title="Price List API"
+    icon="tag"
+    href="/j-optic/price-list-api"
+  >
+    Manage price lists for suppliers
+  </Card>
+</CardGroup>
+
