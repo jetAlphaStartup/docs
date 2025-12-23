@@ -121,12 +121,12 @@ Get all items with pricing for a specific cluster with pagination support.
 
 ### Query Parameters
 
-| Parameter | Type     | Required | Default | Description                                    |
-|-----------|----------|----------|---------|------------------------------------------------|
-| `cluster` | `string` | ✅ Yes   | —       | The lens cluster, e.g., "1.56 HMC"            |
-| `type`    | `string` | No       | `sell`  | Price list type: "sell" or "buy"               |
-| `page`    | `number` | No       | `1`     | Page number (min: 1)                           |
-| `limit`   | `number` | No       | `10`    | Items per page (min: 1, max: 100)              |
+| Parameter     | Type     | Required | Default | Description                                    |
+|---------------|----------|----------|---------|------------------------------------------------|
+| `cluster`     | `string` | ✅ Yes   | —       | The lens cluster, e.g., "1.56 HMC"            |
+| `priceListId` | `string` | ✅ Yes   | —       | The price list ID to fetch prices from        |
+| `page`        | `number` | No       | `1`     | Page number (min: 1)                           |
+| `limit`       | `number` | No       | `10`    | Items per page (min: 1, max: 100)              |
 
 ### Success Response
 
@@ -176,7 +176,7 @@ Get all items with pricing for a specific cluster with pagination support.
 ### Response Fields
 
 - `cluster` (string) - The cluster name
-- `priceListType` (string) - The price list type used ("sell" or "buy")
+- `priceListType` (string) - The price list type derived from price list flags ("sell", "buy", or "diff")
 - `priceList` (object) - Price list information
   - `id` (string) - Price list ID
   - `name` (string) - Price list name
@@ -201,7 +201,7 @@ Get all items with pricing for a specific cluster with pagination support.
 
 <CodeGroup>
 ```bash cURL
-curl -X GET "https://joptic.jethings.com/lens-pricing/items?cluster=1.56%20HMC&type=sell&page=1&limit=20" \
+curl -X GET "https://joptic.jethings.com/lens-pricing/items?cluster=1.56%20HMC&priceListId=price_list_123&page=1&limit=20" \
   -H "x-store-id: your-store-id" \
   -H "Authorization: Bearer <token>"
 ```
@@ -209,7 +209,7 @@ curl -X GET "https://joptic.jethings.com/lens-pricing/items?cluster=1.56%20HMC&t
 ```javascript JavaScript
 const params = new URLSearchParams({
   cluster: "1.56 HMC",
-  type: "sell",
+  priceListId: "price_list_123",
   page: "1",
   limit: "20"
 })
@@ -232,7 +232,7 @@ url = "https://joptic.jethings.com/lens-pricing/items"
 
 params = {
     "cluster": "1.56 HMC",
-    "type": "sell",
+    "priceListId": "price_list_123",
     "page": 1,
     "limit": 20
 }
@@ -268,11 +268,11 @@ Get items with pricing organized in a matrix format grouped by sign combinations
 
 ### Query Parameters
 
-| Parameter | Type     | Required | Default | Description                         |
-|-----------|----------|----------|---------|-------------------------------------|
-| `cluster` | `string` | ✅ Yes   | —       | The lens cluster, e.g., "1.56 HMC"  |
-| `type`    | `string` | No       | `sell`  | Price list type: "sell" or "buy"    |
-| `format`  | `string` | No       | `record`| Response format: "record" or "array" |
+| Parameter     | Type     | Required | Default | Description                         |
+|---------------|----------|----------|---------|-------------------------------------|
+| `cluster`     | `string` | ✅ Yes   | —       | The lens cluster, e.g., "1.56 HMC"  |
+| `priceListId` | `string` | ✅ Yes   | —       | The price list ID to fetch prices from |
+| `format`      | `string` | No       | `matrix`| Response format: "matrix" or "array" |
 
 ### Success Response
 
@@ -328,9 +328,12 @@ Get items with pricing organized in a matrix format grouped by sign combinations
 ### Response Fields
 
 - `cluster` (string) - The cluster name
-- `priceListType` (string) - The price list type used ("sell" or "buy")
+- `priceListType` (string) - The price list type derived from price list flags ("sell", "buy", or "diff")
 - `priceList` (object) - Price list information
-- `matrices` (object) - Price matrices grouped by sign combinations
+  - `id` (string) - Price list ID
+  - `name` (string) - Price list name
+- `matrices` (object) - Price matrices grouped by sign combinations (matrix format)
+- `data` (object) - Price data grouped by sign combinations (array format)
   - `pp` (object) - Positive SPH (+) / Positive CYL (+) matrix
   - `nn` (object) - Negative SPH (-) / Negative CYL (-) matrix
   - `np` (object) - Negative SPH (-) / Positive CYL (+) matrix
@@ -369,7 +372,7 @@ Get items with pricing organized in a matrix format grouped by sign combinations
 
 <CodeGroup>
 ```bash cURL
-curl -X GET "https://joptic.jethings.com/lens-pricing/items/table?cluster=1.56%20HMC&type=sell" \
+curl -X GET "https://joptic.jethings.com/lens-pricing/items/table?cluster=1.56%20HMC&priceListId=price_list_123&format=matrix" \
   -H "x-store-id: your-store-id" \
   -H "Authorization: Bearer <token>"
 ```
@@ -377,7 +380,8 @@ curl -X GET "https://joptic.jethings.com/lens-pricing/items/table?cluster=1.56%2
 ```javascript JavaScript
 const params = new URLSearchParams({
   cluster: "1.56 HMC",
-  type: "sell"
+  priceListId: "price_list_123",
+  format: "matrix"
 })
 
 const response = await fetch(`https://joptic.jethings.com/lens-pricing/items/table?${params}`, {
@@ -398,7 +402,8 @@ url = "https://joptic.jethings.com/lens-pricing/items/table"
 
 params = {
     "cluster": "1.56 HMC",
-    "type": "sell"
+    "priceListId": "price_list_123",
+    "format": "matrix"
 }
 
 response = requests.get(
@@ -416,30 +421,32 @@ print(response.json())
 
 ### Possible Errors
 
-- `400 Bad Request` - Missing or invalid cluster parameter
+- `400 Bad Request` - Missing or invalid cluster or priceListId parameter
 - `401 Unauthorized` - Missing or invalid authentication token
 - `403 Forbidden` - User does not have access to the store
-- `404 Not Found` - Price list not found for the specified type
+- `404 Not Found` - Price list not found or does not belong to the store
 - `500 Internal Server Error` - Server error
 
 ---
 
-## Get Price Difference Between Sell and Buy Prices
+## Get Price Difference Between Two Price Lists
 
-Get the profit margin (difference) between sell and buy prices for a cluster. Returns profit in either currency or percentage format, grouped by sign combinations (pp, nn, np). This endpoint is useful for analyzing profit margins and pricing strategies.
+Get the profit margin (difference) between two price lists for a cluster. Returns profit in either currency or percentage format, grouped by sign combinations (pp, nn, np). This endpoint is useful for analyzing profit margins and pricing strategies.
 
 **Endpoint:** `GET /lens-pricing/diff`
 
 ### Query Parameters
 
-| Parameter | Type     | Required | Default     | Description                                    |
-|-----------|----------|----------|-------------|------------------------------------------------|
-| `cluster` | `string` | ✅ Yes   | —           | The lens cluster, e.g., "1.56 HMC"            |
-| `mode`    | `string` | No       | `currency`  | Profit calculation mode: "currency" or "percentage" |
+| Parameter      | Type     | Required | Default     | Description                                    |
+|----------------|----------|----------|-------------|------------------------------------------------|
+| `cluster`      | `string` | ✅ Yes   | —           | The lens cluster, e.g., "1.56 HMC"            |
+| `priceListId1` | `string` | ✅ Yes   | —           | First price list ID (typically the higher/sell price list) |
+| `priceListId2` | `string` | ✅ Yes   | —           | Second price list ID (typically the lower/buy price list) |
+| `mode`         | `string` | No       | `currency`  | Profit calculation mode: "currency" or "percentage" |
 
 **Mode Options:**
-- `currency` - Returns profit as the difference in currency units (sellPrice - buyPrice)
-- `percentage` - Returns profit as a percentage ((sellPrice - buyPrice) / buyPrice * 100)
+- `currency` - Returns profit as the difference in currency units (priceList1 - priceList2)
+- `percentage` - Returns profit as a percentage ((priceList1 - priceList2) / priceList2 * 100)
 
 ### Success Response
 
@@ -496,16 +503,16 @@ Get the profit margin (difference) between sell and buy prices for a cluster. Re
     
     Profit is calculated as:
     ```
-    profit = sellPrice - buyPrice
+    profit = priceList1 - priceList2
     ```
     
     **Special Cases:**
-    - If only sell price exists: `profit = sellPrice`
-    - If only buy price exists: `profit = buyPrice`
+    - If only priceList1 exists: `profit = priceList1`
+    - If only priceList2 exists: `profit = -priceList2` (negative difference)
     - If neither exists: `profit = 0`
-    - If both exist: `profit = sellPrice - buyPrice`
+    - If both exist: `profit = priceList1 - priceList2`
     
-    **Example:** If sell price is 800 and buy price is 600, profit = 200
+    **Example:** If priceList1 is 800 and priceList2 is 600, profit = 200
   </Accordion>
 
   <Accordion title="Percentage Mode" icon="percent">
@@ -513,25 +520,25 @@ Get the profit margin (difference) between sell and buy prices for a cluster. Re
     
     Profit percentage is calculated as:
     ```
-    profitPercentage = ((sellPrice - buyPrice) / buyPrice) * 100
+    profitPercentage = ((priceList1 - priceList2) / priceList2) * 100
     ```
     
     **Special Cases:**
-    - If only sell price exists: `profitPercentage = 100%` (100% profit margin)
-    - If only buy price exists: `profitPercentage = 100%` (100% profit margin)
+    - If only priceList1 exists: `profitPercentage = 100%` (100% profit margin)
+    - If only priceList2 exists: `profitPercentage = -100%` (-100% difference)
     - If neither exists: `profitPercentage = 0%`
-    - If both exist and buyPrice ≠ 0: `profitPercentage = ((sellPrice - buyPrice) / buyPrice) * 100`
-    - If buyPrice = 0: Division by zero is avoided, returns appropriate default
+    - If both exist and priceList2 ≠ 0: `profitPercentage = ((priceList1 - priceList2) / priceList2) * 100`
+    - If priceList2 = 0: Division by zero is avoided, returns appropriate default
     
-    **Example:** If sell price is 800 and buy price is 600, profit = ((800 - 600) / 600) * 100 = 33.33%
+    **Example:** If priceList1 is 800 and priceList2 is 600, profit = ((800 - 600) / 600) * 100 = 33.33%
   </Accordion>
 
   <Accordion title="Missing Prices" icon="alert-circle">
     **Handling Missing Prices**
     
     The system handles cases where prices might be missing:
-    - **Only sell price exists**: Treated as full profit (currency: sellPrice, percentage: 100%)
-    - **Only buy price exists**: Treated as potential cost (currency: buyPrice, percentage: 100%)
+    - **Only priceList1 exists**: Treated as full profit (currency: priceList1, percentage: 100%)
+    - **Only priceList2 exists**: Treated as potential cost (currency: -priceList2, percentage: -100%)
     - **Neither exists**: Returns 0 (currency) or 0% (percentage)
     - **Both exist**: Calculates actual difference
     
@@ -546,19 +553,19 @@ Get the profit margin (difference) between sell and buy prices for a cluster. Re
     - **nn**: Negative SPH (-) / Negative CYL (-)
     - **np**: Negative SPH (-) / Positive CYL (+)
     
-    Only non-empty combinations are included in the response. Axes are merged from both sell and buy price tables to ensure complete coverage.
+    Only non-empty combinations are included in the response. Axes are merged from both price lists to ensure complete coverage.
   </Accordion>
 </AccordionGroup>
 
 <Note>
-  The response format uses array structure (x, y, value) optimized for frontend table rendering. The `x` coordinate represents SPH value, `y` coordinate represents CYL value, and `value` represents the calculated profit. Axes are automatically merged from both sell and buy price tables to include all combinations where either price exists.
+  The response format uses array structure (x, y, value) optimized for frontend table rendering. The `x` coordinate represents SPH value, `y` coordinate represents CYL value, and `value` represents the calculated profit. Axes are automatically merged from both price lists to include all combinations where either price exists. The `priceListType` field is set to "diff" for difference calculations.
 </Note>
 
 ### Example Request
 
 <CodeGroup>
 ```bash cURL
-curl -X GET "https://joptic.jethings.com/lens-pricing/diff?cluster=1.56%20HMC&mode=currency" \
+curl -X GET "https://joptic.jethings.com/lens-pricing/diff?cluster=1.56%20HMC&priceListId1=price_list_123&priceListId2=price_list_456&mode=currency" \
   -H "x-store-id: your-store-id" \
   -H "Authorization: Bearer <token>"
 ```
@@ -566,6 +573,8 @@ curl -X GET "https://joptic.jethings.com/lens-pricing/diff?cluster=1.56%20HMC&mo
 ```javascript JavaScript
 const params = new URLSearchParams({
   cluster: "1.56 HMC",
+  priceListId1: "price_list_123",
+  priceListId2: "price_list_456",
   mode: "currency"
 })
 
@@ -587,6 +596,8 @@ url = "https://joptic.jethings.com/lens-pricing/diff"
 
 params = {
     "cluster": "1.56 HMC",
+    "priceListId1": "price_list_123",
+    "priceListId2": "price_list_456",
     "mode": "currency"
 }
 
@@ -607,7 +618,7 @@ print(response.json())
 
 <CodeGroup>
 ```bash cURL
-curl -X GET "https://joptic.jethings.com/lens-pricing/diff?cluster=1.56%20HMC&mode=percentage" \
+curl -X GET "https://joptic.jethings.com/lens-pricing/diff?cluster=1.56%20HMC&priceListId1=price_list_123&priceListId2=price_list_456&mode=percentage" \
   -H "x-store-id: your-store-id" \
   -H "Authorization: Bearer <token>"
 ```
@@ -655,14 +666,14 @@ curl -X GET "https://joptic.jethings.com/lens-pricing/diff?cluster=1.56%20HMC&mo
 
 ### Possible Errors
 
-- `400 Bad Request` - Missing or invalid cluster parameter, invalid mode value
+- `400 Bad Request` - Missing or invalid cluster, priceListId1, priceListId2, or mode parameter
 - `401 Unauthorized` - Missing or invalid authentication token
 - `403 Forbidden` - User does not have access to the store
-- `404 Not Found` - Price list not found for sell or buy type
+- `404 Not Found` - One or both price lists not found or do not belong to the store
 - `500 Internal Server Error` - Server error
 
 <Info>
-  This endpoint requires both sell and buy price lists to be configured for the store. The system automatically fetches prices from both lists and calculates the difference. If either price list is missing, appropriate error responses are returned.
+  This endpoint requires both price lists to be configured for the store. The system automatically fetches prices from both lists and calculates the difference. If either price list is missing or doesn't belong to the store, appropriate error responses are returned.
 </Info>
 
 ---
@@ -677,12 +688,12 @@ Set or update prices for multiple lens items in bulk. Uses database transactions
 
 The endpoint accepts two different price formats:
 
-| Field       | Type            | Required | Description                                                      |
-|-------------|-----------------|----------|------------------------------------------------------------------|
-| `cluster`   | `string`        | ✅ Yes   | The lens cluster, e.g., "1.56 HMC"                               |
-| `type`      | `string`        | ✅ Yes   | Price list type: "sell" or "buy"                                 |
-| `signCombo` | `string`        | ✅ Yes   | Sign combination: "pp", "nn", or "np"                           |
-| `prices`    | `object` or `array` | ✅ Yes   | Price data in either Record format (object) or Array format (array) |
+| Field        | Type            | Required | Description                                                      |
+|--------------|-----------------|----------|------------------------------------------------------------------|
+| `cluster`    | `string`        | ✅ Yes   | The lens cluster, e.g., "1.56 HMC"                               |
+| `priceListId`| `string`        | ✅ Yes   | The price list ID to set prices in                               |
+| `signCombo`  | `string`        | ✅ Yes   | Sign combination: "pp", "nn", or "np"                           |
+| `prices`     | `object` or `array` | ✅ Yes   | Price data in either Record format (object) or Array format (array) |
 
 ### Format 1: Record Format (Legacy - Still Supported)
 
@@ -691,7 +702,7 @@ The `prices` field is an object mapping `"sph|cyl"` keys to price values:
 ```json
 {
   "cluster": "1.56 HMC",
-  "type": "sell",
+  "priceListId": "price_list_123",
   "signCombo": "pp",
   "prices": {
     "0|0": 800,
@@ -721,7 +732,7 @@ The `prices` field is an array of price point objects:
 ```json
 {
   "cluster": "1.56 HMC",
-  "type": "sell",
+  "priceListId": "price_list_123",
   "signCombo": "pp",
   "prices": [
     { "x": 0.0,  "y": 0.0,  "value": 800 },
@@ -779,7 +790,7 @@ curl -X POST https://joptic.jethings.com/lens-pricing/items/prices \
   -H "Content-Type: application/json" \
   -d '{
     "cluster": "1.56 HMC",
-    "type": "sell",
+    "priceListId": "price_list_123",
     "signCombo": "pp",
     "prices": [
       { "x": 0.0,  "y": 0.0,  "value": 800 },
@@ -796,7 +807,7 @@ curl -X POST https://joptic.jethings.com/lens-pricing/items/prices \
 ```javascript JavaScript
 const priceData = {
   cluster: "1.56 HMC",
-  type: "sell",
+  priceListId: "price_list_123",
   signCombo: "pp",
   prices: [
     { x: 0.0,  y: 0.0,  value: 800 },
@@ -829,7 +840,7 @@ url = "https://joptic.jethings.com/lens-pricing/items/prices"
 
 price_data = {
     "cluster": "1.56 HMC",
-    "type": "sell",
+    "priceListId": "price_list_123",
     "signCombo": "pp",
     "prices": [
         {"x": 0.0,  "y": 0.0,  "value": 800},
@@ -866,7 +877,7 @@ curl -X POST https://joptic.jethings.com/lens-pricing/items/prices \
   -H "Content-Type: application/json" \
   -d '{
     "cluster": "1.56 HMC",
-    "type": "sell",
+    "priceListId": "price_list_123",
     "signCombo": "pp",
     "prices": {
       "0|0": 800,
@@ -883,7 +894,7 @@ curl -X POST https://joptic.jethings.com/lens-pricing/items/prices \
 ```javascript JavaScript
 const priceData = {
   cluster: "1.56 HMC",
-  type: "sell",
+  priceListId: "price_list_123",
   signCombo: "pp",
   prices: {
     "0|0": 800,
@@ -916,7 +927,7 @@ url = "https://joptic.jethings.com/lens-pricing/items/prices"
 
 price_data = {
     "cluster": "1.56 HMC",
-    "type": "sell",
+    "priceListId": "price_list_123",
     "signCombo": "pp",
     "prices": {
         "0|0": 800,
@@ -958,10 +969,10 @@ The normalization happens in the controller, ensuring both formats produce ident
 
 ### Possible Errors
 
-- `400 Bad Request` - Validation errors (invalid cluster, type, signCombo, or request body structure)
+- `400 Bad Request` - Validation errors (invalid cluster, priceListId, signCombo, or request body structure)
 - `401 Unauthorized` - Missing or invalid authentication token
 - `403 Forbidden` - User does not have access to the store
-- `404 Not Found` - No price list found for the specified type, or LENS product type not found
+- `404 Not Found` - Price list not found or does not belong to the store, or LENS product type not found
 - `500 Internal Server Error` - Server error
 
 ---
@@ -1124,7 +1135,7 @@ curl -X GET "https://joptic.jethings.com/lens-pricing/clusters" \
 
 <CodeGroup>
 ```bash cURL
-curl -X GET "https://joptic.jethings.com/lens-pricing/items?cluster=1.56%20HMC&type=sell&page=1&limit=20" \
+curl -X GET "https://joptic.jethings.com/lens-pricing/items?cluster=1.56%20HMC&priceListId=price_list_123&page=1&limit=20" \
   -H "x-store-id: your-store-id" \
   -H "Authorization: Bearer <token>"
 ```
@@ -1134,7 +1145,7 @@ curl -X GET "https://joptic.jethings.com/lens-pricing/items?cluster=1.56%20HMC&t
 
 <CodeGroup>
 ```bash cURL
-curl -X GET "https://joptic.jethings.com/lens-pricing/items/table?cluster=1.56%20HMC&type=sell" \
+curl -X GET "https://joptic.jethings.com/lens-pricing/items/table?cluster=1.56%20HMC&priceListId=price_list_123&format=matrix" \
   -H "x-store-id: your-store-id" \
   -H "Authorization: Bearer <token>"
 ```
@@ -1150,7 +1161,7 @@ curl -X POST https://joptic.jethings.com/lens-pricing/items/prices \
   -H "Content-Type: application/json" \
   -d '{
     "cluster": "1.56 HMC",
-    "type": "sell",
+    "priceListId": "price_list_123",
     "signCombo": "pp",
     "prices": [
       { "x": 0.0, "y": 0.0, "value": 800 },
@@ -1171,7 +1182,7 @@ curl -X POST https://joptic.jethings.com/lens-pricing/items/prices \
   -H "Content-Type: application/json" \
   -d '{
     "cluster": "1.56 HMC",
-    "type": "sell",
+    "priceListId": "price_list_123",
     "signCombo": "pp",
     "prices": {
       "0|0": 800,
@@ -1210,6 +1221,7 @@ curl -X POST https://joptic.jethings.com/lens-pricing/items/prices \
 
 - **v1.0** - Initial implementation with clusters, paginated items, table format, and bulk price updates
 - **v1.1** - Added Array format support for price updates (Record format still supported for backward compatibility)
+- **v2.0** - Replaced `type` parameter with `priceListId` for all endpoints. Price list type is now derived from price list's `isBuying` and `isSelling` flags
 
 ---
 

@@ -16,6 +16,8 @@ All Customer Group API endpoints require authentication. Routes that operate in 
 Customer groups can be:
 - Created with a name, description, and default price list
 - Listed with pagination, filtering, and sorting
+- Retrieved by ID for individual group details
+- Deleted in bulk operations
 - Used to assign customers to groups for pricing and organization
 - Associated with default price lists for automatic pricing
 
@@ -46,6 +48,7 @@ All endpoints require user authentication. The user ID is extracted from the JWT
 Endpoints are protected with rate limiting:
 - **GET** endpoints: 60 requests per minute (long throttle)
 - **POST** endpoints: 10 requests per minute (medium throttle)
+- **DELETE** endpoints: 3 requests per minute (short throttle)
 
 ---
 
@@ -344,6 +347,207 @@ The search parameter performs a case-insensitive search across both group name a
 
 ---
 
+## Get Customer Group by ID
+
+**GET** `/customer-group/:id`
+
+Retrieve a single customer group by its ID.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+**Rate Limited:** 60 requests per minute
+
+### Path Parameters
+
+| Parameter | Type     | Required | Description   |
+|-----------|----------|----------|---------------|
+| `id`      | `string` | ✅ Yes   | The customer group ID |
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "id": "cgrp_abc123",
+  "name": "VIP Customers",
+  "description": "Premium customers with special pricing",
+  "createdAt": "2025-10-01T09:00:00.000Z",
+  "updatedAt": "2025-10-15T12:30:00.000Z"
+}
+```
+
+### Response Fields
+
+| Field         | Type     | Description                        |
+| ------------- | -------- | ---------------------------------- |
+| `id`          | `string` | Unique customer group ID           |
+| `name`        | `string` | Group name                         |
+| `description` | `string` | Description of the group           |
+| `createdAt`   | `string` | Creation timestamp (ISO 8601)     |
+| `updatedAt`   | `string` | Last update timestamp (ISO 8601)   |
+
+### Possible Errors
+
+| Code | Message                                        |
+| ---- | ---------------------------------------------- |
+| 401  | Unauthorized                                   |
+| 404  | Not Found - Customer group not found          |
+| 500  | Internal Server Error                          |
+
+### Example Requests
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://joptic.jethings.com/customer-group/cgrp_abc123" \
+  -H "Authorization: Bearer <token>"
+```
+
+```javascript JavaScript
+const response = await fetch("https://joptic.jethings.com/customer-group/cgrp_abc123", {
+  method: "GET",
+  headers: {
+    Authorization: "Bearer <token>",
+  },
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://joptic.jethings.com/customer-group/cgrp_abc123"
+
+response = requests.get(
+    url,
+    headers={
+        "Authorization": "Bearer <token>"
+    }
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+<Note>
+This endpoint does not require the `x-store-id` header. It retrieves the customer group by ID regardless of store association.
+</Note>
+
+---
+
+## Delete Customer Groups (Bulk)
+
+**DELETE** `/customer-group`
+
+Delete one or more customer groups by their IDs. This is a bulk delete operation that allows removing multiple groups in a single request.
+
+**Requires Authentication:** Bearer token in Authorization header
+
+**Rate Limited:** 3 requests per minute
+
+### Request Body
+
+| Field | Type            | Required | Description                       |
+|-------|-----------------|----------|-----------------------------------|
+| `ids` | `array<string>` | ✅ Yes   | Array of customer group IDs to delete |
+
+### Request Body Example
+
+```json
+{
+  "ids": [
+    "cgrp_abc123",
+    "cgrp_def456",
+    "cgrp_ghi789"
+  ]
+}
+```
+
+### Success Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "message": "Deleted 3 customer group(s)",
+  "deletedCount": 3
+}
+```
+
+### Response Fields
+
+| Field         | Type     | Description                        |
+| ------------- | -------- | ---------------------------------- |
+| `message`     | `string` | Success message with count         |
+| `deletedCount`| `number` | Number of customer groups deleted  |
+
+### Possible Errors
+
+| Code | Message                                        |
+| ---- | ---------------------------------------------- |
+| 400  | Bad Request - No IDs provided or empty array  |
+| 401  | Unauthorized                                   |
+| 404  | Not Found - No matching customer groups found |
+| 500  | Internal Server Error                          |
+
+### Example Requests
+
+<CodeGroup>
+```bash cURL
+curl -X DELETE "https://joptic.jethings.com/customer-group" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ids": ["cgrp_abc123", "cgrp_def456"]
+  }'
+```
+
+```javascript JavaScript
+const deleteData = {
+  ids: ["cgrp_abc123", "cgrp_def456"]
+}
+
+const response = await fetch("https://joptic.jethings.com/customer-group", {
+  method: "DELETE",
+  headers: {
+    Authorization: "Bearer <token>",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify(deleteData),
+})
+
+const result = await response.json()
+```
+
+```python Python
+import requests
+
+url = "https://joptic.jethings.com/customer-group"
+
+delete_data = {
+    "ids": ["cgrp_abc123", "cgrp_def456"]
+}
+
+response = requests.delete(
+    url,
+    headers={
+        "Authorization": "Bearer <token>",
+        "Content-Type": "application/json"
+    },
+    json=delete_data
+)
+
+print(response.json())
+```
+</CodeGroup>
+
+<Warning>
+This is a bulk delete operation. Only valid customer group IDs are deleted (invalid IDs are ignored). Returns the count of successfully deleted groups. This operation is permanent and cannot be undone. Rate limited to 3 requests per minute for safety.
+</Warning>
+
+---
+
 ## Assign Customer to Group
 
 **POST** `/customer-group/assign-group`
@@ -638,7 +842,29 @@ curl -X GET "https://joptic.jethings.com/customer-group?search=VIP&page=1&limit=
 ```
 </CodeGroup>
 
-### Example 4: Assign customer to group
+### Example 4: Get customer group by ID
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://joptic.jethings.com/customer-group/cgrp_abc123" \
+  -H "Authorization: Bearer <token>"
+```
+</CodeGroup>
+
+### Example 5: Delete multiple customer groups
+
+<CodeGroup>
+```bash cURL
+curl -X DELETE "https://joptic.jethings.com/customer-group" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ids": ["cgrp_abc123", "cgrp_def456"]
+  }'
+```
+</CodeGroup>
+
+### Example 6: Assign customer to group
 
 <CodeGroup>
 ```bash cURL
@@ -695,6 +921,7 @@ curl -X POST "https://joptic.jethings.com/customer-group/assign-group" \
   <Accordion title="Rate Limiting">
     - GET endpoints: 60 requests per minute
     - POST endpoints: 10 requests per minute
+    - DELETE endpoints: 3 requests per minute
     - Implement retry logic with exponential backoff for rate limit errors
     - Batch operations when possible to reduce API calls
   </Accordion>
@@ -728,6 +955,8 @@ Customer groups work in conjunction with other customer and pricing management e
 | ----------------------------- | -------- | --------------------------------------------- |
 | `/customer-group`             | `POST`   | Create a new customer group (rate: 10/min)    |
 | `/customer-group`             | `GET`    | Paginated list of customer groups (rate: 60/min) |
+| `/customer-group/:id`         | `GET`    | Get a customer group by ID (rate: 60/min)     |
+| `/customer-group`             | `DELETE` | Delete multiple customer groups (rate: 3/min) |
 | `/customer-group/assign-group` | `POST`   | Assign a customer to a group (rate: 10/min)   |
 
 ---
@@ -748,4 +977,5 @@ Customer groups work in conjunction with other customer and pricing management e
     Manage price lists for customer groups
   </Card>
 </CardGroup>
+
 
