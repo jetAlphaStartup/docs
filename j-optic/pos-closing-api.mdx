@@ -1,0 +1,577 @@
+---
+title: "POS Closing API"
+description: "Retrieve closing status and close POS sessions for end-of-day reconciliation"
+---
+
+# POS Closing API
+
+<Note>
+  **Created:** December 25, 2025 at 10:05 AM
+  
+  The POS Session Closing endpoints provide functionality to retrieve closing status information and close POS sessions for end-of-day reconciliation.
+</Note>
+
+The POS Session Closing endpoints provide functionality to retrieve closing status information and close POS sessions. These endpoints are used for end-of-day reconciliation, allowing store managers to review session activity and officially close a POS session with the actual funded money amount.
+
+## Endpoint Details
+
+**Base URL:** `https://joptic.jethings.com`
+
+### Required Headers
+
+```
+Store-Id: <store_id>
+Authorization: Bearer <token>
+```
+
+---
+
+## Endpoints
+
+### 1. Get POS Closing Status
+
+```
+GET /pos-session/closing-status/:profileId
+```
+
+Retrieves comprehensive closing status information for the current open POS session, including invoices, money movements, and calculated totals.
+
+### 2. Close POS Session
+
+```
+POST /pos-session/close-session/:profileId
+```
+
+Closes the current open POS session by creating a closing record with the funded money amount and calculating the difference between expected and actual money.
+
+---
+
+## Endpoint 1: Get POS Closing Status
+
+### Request
+
+**Method:** `GET`  
+**Path:** `/pos-session/closing-status/:profileId`
+
+#### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `profileId` | string | ✅ Yes | The POS profile ID for which to retrieve closing status |
+
+#### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Store-Id` | string | ✅ Yes | The store ID (automatically injected via `@StoreId()` decorator) |
+| `Authorization` | string | ✅ Yes | Bearer token for authentication |
+
+### Response
+
+**Type:** `PosClosingStatusResponseDto`
+
+```typescript
+{
+  storeName: string;                    // Name of the store
+  openingTime: Date;                    // When the session was opened
+  openingAmount: number;                // Opening cash amount
+  invoices: Array<{                     // All invoices in this session
+    id: string;                         // Invoice ID
+    ttc: string;                        // Total To Collect
+    actualAmountPaid: number;           // Actual amount paid (sum of payment allocations)
+    date: Date;                         // Invoice creation date
+    time: string;                       // Invoice creation time (HH:mm:ss format)
+    numberOfItems: number;              // Number of items in the invoice
+  }>;
+  moneyMovements: Array<{               // All money movements in this session
+    type: "deposit" | "withdrawal";     // Movement type
+    date: Date;                         // Movement date
+    time: string;                       // Movement time (HH:mm:ss format)
+    amount: number;                     // Movement amount
+  }>;
+  invoiceCount: number;                  // Total number of invoices
+  soldCustomersNumber: number;          // Number of distinct customers who made purchases
+  ttc: number;                          // Total TTC (sum of all invoice TTCs)
+  outstandingAmount: number;            // Total outstanding debt (unpaid amounts)
+  expectedMoney: number;                // Expected money = total payments + net money movements
+}
+```
+
+### Field Descriptions
+
+#### Session Information
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `storeName` | string | The name of the store where the session is active |
+| `openingTime` | Date | Timestamp when the POS session was opened |
+| `openingAmount` | number | The initial cash amount when the session was opened |
+
+#### Invoices
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `invoices` | array | Array of all sales invoices created during this session |
+| `invoices[].id` | string | Invoice ID |
+| `invoices[].ttc` | string | Total To Collect for the invoice |
+| `invoices[].actualAmountPaid` | number | Actual amount paid (sum of payment allocations) |
+| `invoices[].date` | Date | Invoice creation date |
+| `invoices[].time` | string | Invoice creation time (HH:mm:ss format) |
+| `invoices[].numberOfItems` | number | Number of items in the invoice |
+
+<Note>
+  Invoices are ordered by creation date (newest first). Each invoice includes its TTC, actual amount paid, creation date/time, and item count.
+</Note>
+
+#### Money Movements
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `moneyMovements` | array | Array of all money deposits and withdrawals during the session |
+| `moneyMovements[].type` | string | Movement type: "deposit" adds money, "withdrawal" removes money |
+| `moneyMovements[].date` | Date | Movement date |
+| `moneyMovements[].time` | string | Movement time (HH:mm:ss format) |
+| `moneyMovements[].amount` | number | Movement amount |
+
+<Note>
+  Movements are ordered by creation date (newest first). Deposits add to expected money, withdrawals subtract from it.
+</Note>
+
+#### Aggregates
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `invoiceCount` | number | Total number of invoices created in this session |
+| `soldCustomersNumber` | number | Count of distinct customers (excluding null customer IDs) |
+| `ttc` | number | Sum of all invoice TTC amounts |
+| `outstandingAmount` | number | Total unpaid amount across all invoices (TTC - actualAmountPaid for each invoice) |
+| `expectedMoney` | number | Calculated as: `totalActualPayments + netMoneyMovements` |
+
+**Expected Money Calculation:**
+- `totalActualPayments`: Sum of all `actualAmountPaid` from invoices
+- `netMoneyMovements`: Sum of deposits minus sum of withdrawals
+
+### How It Works
+
+1. **Retrieve Current Session**
+   - Finds the current open session for the given profile and store
+   - Throws `NotFoundException` if no open session exists
+
+2. **Fetch Store Information**
+   - Retrieves store name for display purposes
+
+3. **Calculate Invoice Data**
+   - Retrieves all POS invoices linked to the session
+   - For each invoice, calculates:
+     - `actualAmountPaid`: Sum of all payment allocations for that invoice
+     - `numberOfItems`: Count of items in the invoice
+   - Formats date and time for display
+
+4. **Fetch Money Movements**
+   - Retrieves all money movements (deposits/withdrawals) for the session
+   - Formats date and time for display
+
+5. **Calculate Aggregates**
+   - **invoiceCount**: Total number of invoices
+   - **soldCustomersNumber**: Distinct customer count (excluding null)
+   - **ttc**: Sum of all invoice TTC values
+   - **outstandingAmount**: Sum of (TTC - actualAmountPaid) for all invoices where debt > 0
+   - **expectedMoney**: Sum of all actual payments + net money movements
+
+### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://joptic.jethings.com/pos-session/closing-status/profile_123" \
+  -H "Store-Id: store_456" \
+  -H "Authorization: Bearer <token>"
+```
+
+```javascript JavaScript
+const response = await fetch('https://joptic.jethings.com/pos-session/closing-status/profile_123', {
+  method: 'GET',
+  headers: {
+    'Store-Id': 'store_456',
+    'Authorization': 'Bearer <token>'
+  }
+});
+
+const data = await response.json();
+```
+
+```typescript TypeScript
+const response = await fetch('https://joptic.jethings.com/pos-session/closing-status/profile_123', {
+  method: 'GET',
+  headers: {
+    'Store-Id': 'store_456',
+    'Authorization': 'Bearer <token>'
+  }
+});
+
+const data: PosClosingStatusResponseDto = await response.json();
+```
+</CodeGroup>
+
+### Example Response
+
+```json
+{
+  "storeName": "Main Store",
+  "openingTime": "2024-01-15T08:00:00.000Z",
+  "openingAmount": 500.00,
+  "invoices": [
+    {
+      "id": "inv_001",
+      "ttc": "125.50",
+      "actualAmountPaid": 125.50,
+      "date": "2024-01-15T10:30:00.000Z",
+      "time": "10:30:00",
+      "numberOfItems": 3
+    },
+    {
+      "id": "inv_002",
+      "ttc": "75.00",
+      "actualAmountPaid": 50.00,
+      "date": "2024-01-15T11:15:00.000Z",
+      "time": "11:15:00",
+      "numberOfItems": 2
+    }
+  ],
+  "moneyMovements": [
+    {
+      "type": "deposit",
+      "date": "2024-01-15T09:00:00.000Z",
+      "time": "09:00:00",
+      "amount": 100.00
+    },
+    {
+      "type": "withdrawal",
+      "date": "2024-01-15T12:00:00.000Z",
+      "time": "12:00:00",
+      "amount": 25.00
+    }
+  ],
+  "invoiceCount": 2,
+  "soldCustomersNumber": 2,
+  "ttc": 200.50,
+  "outstandingAmount": 25.00,
+  "expectedMoney": 250.50
+}
+```
+
+**Calculation Breakdown:**
+- Total actual payments: 125.50 + 50.00 = 175.50
+- Net money movements: 100.00 (deposit) - 25.00 (withdrawal) = 75.00
+- Expected money: 175.50 + 75.00 = 250.50
+
+### Error Responses
+
+#### 404 Not Found
+- **No open session**: `"No open session found for this profile"`
+  - Occurs when there is no currently open session for the given profile and store
+
+- **Store not found**: `"Store not found"`
+  - Occurs when the store ID doesn't exist
+
+---
+
+## Endpoint 2: Close POS Session
+
+### Request
+
+**Method:** `POST`  
+**Path:** `/pos-session/close-session/:profileId`
+
+#### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `profileId` | string | ✅ Yes | The POS profile ID for which to close the session |
+
+#### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Store-Id` | string | ✅ Yes | The store ID (automatically injected via `@StoreId()` decorator) |
+| `Authorization` | string | ✅ Yes | Bearer token for authentication |
+| `Content-Type` | string | ✅ Yes | `application/json` |
+
+#### Request Body
+
+**Type:** `ClosePosSessionDto`
+
+```typescript
+{
+  fundedMoney: number;  // The actual funded money amount (must be positive)
+}
+```
+
+**Validation:**
+- `fundedMoney` must be a number
+- `fundedMoney` must be positive (greater than 0)
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `fundedMoney` | number | ✅ Yes | The actual funded money amount (must be positive) |
+
+### Response
+
+**Success Response (200 OK)**
+
+```typescript
+{
+  success: true;
+  data: {
+    id: string;                    // Closing record ID (same as opening ID)
+    invoiceCount: number;          // Total number of invoices in the session
+    expectedMoney: number;         // Calculated expected money
+    fundedMoney: number;           // The funded money amount provided
+    diff: number;                  // Difference: expectedMoney - fundedMoney
+    createdAt: Date;               // Closing record creation timestamp
+  };
+}
+```
+
+### Field Descriptions
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | The closing record ID (same as the opening session ID for linking) |
+| `invoiceCount` | number | Total number of invoices created during the session |
+| `expectedMoney` | number | Calculated expected money (same calculation as in closing status) |
+| `fundedMoney` | number | The actual funded money amount provided in the request |
+| `diff` | number | The difference between expected and funded money |
+| `createdAt` | Date | Closing record creation timestamp |
+
+**Difference Interpretation:**
+- **Positive diff**: More money expected than funded (shortage)
+- **Negative diff**: Less money expected than funded (surplus)
+- **Zero diff**: Exact match
+
+### How It Works
+
+1. **Validate Session**
+   - Retrieves the current open session for the given profile and store
+   - Throws `NotFoundException` if no open session exists
+   - Throws `BadRequestException` if session is already closed
+
+2. **Calculate Session Totals**
+   - Retrieves all invoices linked to the session
+   - Calculates `totalActualPayments`: Sum of all payment allocations
+   - Retrieves all money movements for the session
+   - Calculates `netMoneyMovements`: Deposits minus withdrawals
+   - Calculates `expectedMoney`: totalActualPayments + netMoneyMovements
+
+3. **Calculate Difference**
+   - `diff = expectedMoney - fundedMoney`
+
+4. **Create Closing Record**
+   - Creates a `posClosing` record with:
+     - Same ID as the opening session (for linking)
+     - Invoice count
+     - Expected money
+     - Funded money
+     - Difference (as string)
+
+5. **Link Opening to Closing**
+   - Updates the `posOpening` record to link it to the closing record
+   - Sets `posClosingId` on the opening record
+
+6. **Return Result**
+   - Returns success response with closing details
+
+<Warning>
+  Once a session is closed, it cannot be closed again. The opening record is permanently linked to the closing record.
+</Warning>
+
+### Example Request
+
+<CodeGroup>
+```json Request Body
+{
+  "fundedMoney": 250.00
+}
+```
+
+```bash cURL
+curl -X POST "https://joptic.jethings.com/pos-session/close-session/profile_123" \
+  -H "Store-Id: store_456" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fundedMoney": 250.00
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://joptic.jethings.com/pos-session/close-session/profile_123', {
+  method: 'POST',
+  headers: {
+    'Store-Id': 'store_456',
+    'Authorization': 'Bearer <token>',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    fundedMoney: 250.00
+  })
+});
+
+const data = await response.json();
+```
+
+```typescript TypeScript
+interface ClosePosSessionDto {
+  fundedMoney: number;
+}
+
+const payload: ClosePosSessionDto = {
+  fundedMoney: 250.00
+};
+
+const response = await fetch('https://joptic.jethings.com/pos-session/close-session/profile_123', {
+  method: 'POST',
+  headers: {
+    'Store-Id': 'store_456',
+    'Authorization': 'Bearer <token>',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify(payload)
+});
+
+const data = await response.json();
+```
+</CodeGroup>
+
+### Example Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "session_789",
+    "invoiceCount": 2,
+    "expectedMoney": 250.50,
+    "fundedMoney": 250.00,
+    "diff": 0.50,
+    "createdAt": "2024-01-15T18:00:00.000Z"
+  }
+}
+```
+
+**Interpretation:**
+- Expected money: 250.50
+- Funded money: 250.00
+- Difference: 0.50 (shortage of 0.50)
+
+### Error Responses
+
+#### 400 Bad Request
+- **Session already closed**: `"Session is already closed"`
+  - Occurs when attempting to close a session that has already been closed
+
+#### 404 Not Found
+- **No open session**: `"No open session found for this profile"`
+  - Occurs when there is no currently open session for the given profile and store
+
+#### 422 Unprocessable Entity
+- **Invalid fundedMoney**: Validation errors if `fundedMoney` is not a number or not positive
+  - `"fundedMoney must be a number"`
+  - `"fundedMoney must be a positive number"`
+
+---
+
+## Workflow Example
+
+### Typical End-of-Day Process
+
+1. **Review Closing Status**
+   ```bash
+   GET /pos-session/closing-status/profile_123
+   ```
+   - Manager reviews invoices, money movements, and expected money
+   - Verifies all transactions are accounted for
+
+2. **Count Physical Cash**
+   - Manager counts the actual cash in the register
+   - Determines the `fundedMoney` amount
+
+3. **Close Session**
+   ```bash
+   POST /pos-session/close-session/profile_123
+   {
+     "fundedMoney": 250.00
+   }
+   ```
+   - System calculates difference between expected and funded
+   - Creates closing record
+   - Session is now closed and cannot be reopened
+
+4. **Review Difference**
+   - If `diff` is positive: Shortage (investigate missing money)
+   - If `diff` is negative: Surplus (investigate extra money)
+   - If `diff` is zero: Perfect match
+
+---
+
+## Important Notes
+
+1. **Session Must Be Open**: Both endpoints require an active open session. Use `GET /pos-session/session-status/:profileId` to check if a session is open.
+
+2. **One Closing Per Session**: Once a session is closed, it cannot be closed again. The opening record is permanently linked to the closing record.
+
+3. **Expected Money Calculation**: 
+   ```
+   expectedMoney = SUM(actualAmountPaid for all invoices) + (SUM(deposits) - SUM(withdrawals))
+   ```
+   This represents the total cash that should be in the register.
+
+4. **Difference Interpretation**:
+   - **Positive diff**: Shortage - less money than expected
+   - **Negative diff**: Surplus - more money than expected
+   - **Zero diff**: Perfect match
+
+5. **Invoice Linking**: Only invoices with `isPosInvoice: true` and linked to the session via `posOpeningId` are included in calculations.
+
+6. **Money Movements**: All deposits and withdrawals during the session are included in the calculation. Deposits add to expected money, withdrawals subtract from it.
+
+7. **Outstanding Amount**: The `outstandingAmount` in closing status represents total customer debt (unpaid invoice amounts). This is separate from the expected money calculation.
+
+8. **Atomic Operation**: Closing a session is an atomic operation. If any step fails, the entire operation is rolled back.
+
+---
+
+## Related Endpoints
+
+- `GET /pos-session/session-status/:profileId` - Check if a session is open
+- `GET /pos-session/current-session/:profileId` - Get current open session details
+- `POST /pos-session/create-session` - Create a new POS session
+- `GET /pos-session/profiles` - Get all POS profiles with their session status
+- `POST /pos-money-movement` - Create money movements (deposits/withdrawals)
+
+---
+
+## Database Schema
+
+### posOpening
+- Represents an open POS session
+- Linked to `posProfile` and `store`
+- Has `posClosingId` field (null when open, set when closed)
+
+### posClosing
+- Represents a closed POS session
+- Has same ID as the corresponding `posOpening` record
+- Stores invoice count, expected money, funded money, and difference
+
+### salesInvoice
+- Linked to `posOpening` via `posOpeningId`
+- Only invoices with `isPosInvoice: true` are included
+
+### paymentAllocation
+- Links payments to invoices
+- Used to calculate `actualAmountPaid` for each invoice
+
+### posMoneyMovement
+- Tracks deposits and withdrawals during a session
+- Linked to `posOpening` via `posOpeningId`
+- Type: "deposit" or "withdrawal"
+

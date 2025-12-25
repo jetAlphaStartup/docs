@@ -1,0 +1,521 @@
+---
+title: "POS Checkout API"
+description: "Process complete point-of-sale transactions with invoice creation, payment recording, and stock updates"
+---
+
+# POS Checkout API
+
+<Note>
+  **Created:** December 25, 2025 at 09:53 AM
+  
+  The POS Checkout endpoint processes complete point-of-sale transactions, creating sales invoices, payment records, and updating inventory stock levels.
+</Note>
+
+The POS Checkout endpoint processes a complete point-of-sale transaction, creating sales invoices, payment records, and updating inventory stock levels. The endpoint handles both full and partial payments, automatically calculates totals, and processes stock updates asynchronously via a queue system.
+
+## Endpoint Details
+
+**Base URL:** `https://joptic.jethings.com`
+
+### Required Headers
+
+```
+x-store-id: <store_id>
+Authorization: Bearer <token>
+```
+
+---
+
+## Endpoint
+
+```
+POST /pos-checkout
+```
+
+---
+
+## Request Body
+
+### Type: `TCompleteOrderPayload`
+
+```typescript
+{
+  customerId: string;           // Required: Customer ID
+  priceListId: string;          // Required: Price list ID for pricing
+  storeId: string;              // Required: Store ID
+  itemVariantsSold: Array<{     // Required: Array of items being sold
+    itemVaraintId: string;      // Item variant ID
+    price: string;              // Unit price (as string)
+    qty: number;                // Quantity sold
+  }>;
+  amountPaid?: string;          // Optional: Actual amount paid (defaults to calculated TTC for full payment)
+  posProfileId?: string;        // Optional: POS profile ID to link invoice to POS opening session
+}
+```
+
+### Field Descriptions
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `customerId` | string | ✅ Yes | The ID of the customer making the purchase |
+| `priceListId` | string | ✅ Yes | The price list ID that determines item pricing |
+| `storeId` | string | ✅ Yes | The store where the sale is taking place |
+| `itemVariantsSold` | array | ✅ Yes | Array of items in the cart, each containing item variant ID, price, and quantity |
+| `amountPaid` | string | No | The actual amount the customer paid. If not provided, defaults to the calculated TTC (full payment). Must be &lt;= calculated TTC |
+| `posProfileId` | string | No | Links the invoice to a POS opening session for reporting and reconciliation |
+
+#### itemVariantsSold Array Items
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `itemVaraintId` | string | ✅ Yes | The item variant ID (from POS products endpoint) |
+| `price` | string | ✅ Yes | The unit price at time of sale (stored as string for precision) |
+| `qty` | number | ✅ Yes | The quantity being purchased |
+
+---
+
+## Response
+
+### Success Response (200 OK)
+
+```typescript
+{
+  success: true;
+  invoice: {
+    id: string;
+    ttc: string;                // Total To Collect (calculated from items)
+    priceListId: string;
+    customerId: string;
+    isPosInvoice: boolean;      // Always true
+    storeId: string;
+    posOpeningId?: string;      // Present if posProfileId was provided
+    createdAt: Date;
+    updatedAt: Date;
+    // ... other invoice fields
+  };
+  payment: {
+    createdPaymentEntry: {
+      id: string;
+      paymentAmount: number;    // Actual amount paid
+      partyId: string;          // Customer ID
+      storeId: string;
+      postingTime: Date;
+      // ... other payment entry fields
+    };
+    createdPaymentAllocation: {
+      id: string;
+      amount: number;           // Actual amount paid (same as paymentAmount)
+      paymentId: string;
+      reference_id: string;     // Invoice ID
+      refrence_type: "sale";
+      // ... other allocation fields
+    };
+  };
+}
+```
+
+### Error Responses
+
+#### 400 Bad Request
+- **Amount exceeds TTC**: `"Amount paid (X) cannot exceed calculated TTC (Y)"`
+  - Occurs when `amountPaid` > calculated TTC
+
+#### 403 Forbidden
+- **No store access**: User doesn't have access to the specified store
+
+#### 500 Internal Server Error
+- Database transaction failures
+- Stock queue processing errors
+
+---
+
+## How It Works
+
+### 1. TTC Calculation
+
+The Total To Collect (TTC) is **automatically calculated** from the items:
+
+```
+TTC = Σ(item.price × item.qty) for all items
+```
+
+**Example:**
+- Item A: price = 10.00, qty = 2 → 20.00
+- Item B: price = 5.50, qty = 3 → 16.50
+- **TTC = 36.50**
+
+<Warning>
+  TTC is always calculated by the system. Never trust client-provided TTC values.
+</Warning>
+
+### 2. Payment Amount
+
+- If `amountPaid` is provided: Uses that value (must be ≤ TTC)
+- If `amountPaid` is not provided: Uses calculated TTC (full payment)
+
+**Partial Payment Example:**
+- TTC = 100.00
+- amountPaid = 75.00
+- Outstanding debt = 25.00
+
+### 3. Transaction Flow
+
+The checkout process happens in two phases:
+
+#### Phase 1: Synchronous Transaction (Invoice & Payment)
+
+All within a single database transaction:
+
+1. **Get POS Opening Session** (if `posProfileId` provided)
+   - Retrieves current open session for the POS profile
+   - Links invoice to the session
+
+2. **Create Sales Invoice**
+   - Stores calculated TTC
+   - Links to customer, store, price list
+   - Marks as POS invoice (`isPosInvoice: true`)
+
+3. **Create Invoice Items**
+   - One record per item variant
+   - Stores price and quantity for each item
+
+4. **Create Payment Entry**
+   - Records the actual payment amount
+   - Links to customer and store
+
+5. **Create Payment Allocation**
+   - Links payment to the invoice
+   - Records amount allocated to this invoice
+
+#### Phase 2: Asynchronous Stock Update (Queue)
+
+After the transaction commits:
+
+1. **Queue Stock Update Job**
+   - Single job for all items in the checkout
+   - Job type: `process-pos-checkout`
+
+2. **Stock Processor** (runs asynchronously)
+   - For each item variant:
+     - Finds warehouse from bin (or uses default warehouse)
+     - Gets current bin quantity
+     - Creates stock ledger entry with negative qtyChange (e.g., "-10")
+     - Updates or creates bin entry with decremented quantity
+   - All stock updates happen in one transaction (atomic)
+
+<Note>
+  Stock updates are processed asynchronously via a queue system. The endpoint returns immediately after creating the invoice and payment. Stock updates happen in the background.
+</Note>
+
+### 4. Stock Update Details
+
+For each item variant:
+
+1. **Warehouse Resolution**
+   - First, tries to find existing bin for the item variant in the store's warehouses
+   - If bin exists: Uses that warehouse
+   - If no bin: Uses the store's default warehouse
+
+2. **Stock Ledger Entry**
+   ```typescript
+   {
+     warehouse: string;              // Warehouse ID
+     itemVariant: string;            // Item variant ID
+     qtyChange: "-10";               // Negative quantity (as string)
+     qtyAfterTransaction: "90";      // New quantity after deduction
+     voucherType: "sale";
+     voucher: string;                 // Invoice ID
+   }
+   ```
+
+3. **Bin Update**
+   - If bin exists: Updates quantity
+   - If bin doesn't exist: Creates new bin with negative quantity (if selling non-existent stock)
+
+---
+
+## Example Requests
+
+### Full Payment
+
+<CodeGroup>
+```json Request Body
+{
+  "customerId": "cust_123",
+  "priceListId": "pl_456",
+  "storeId": "store_789",
+  "itemVariantsSold": [
+    {
+      "itemVaraintId": "var_001",
+      "price": "25.00",
+      "qty": 2
+    },
+    {
+      "itemVaraintId": "var_002",
+      "price": "15.50",
+      "qty": 1
+    }
+  ],
+  "posProfileId": "profile_abc"
+}
+```
+
+```bash cURL
+curl -X POST https://joptic.jethings.com/pos-checkout \
+  -H "x-store-id: store_789" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customerId": "cust_123",
+    "priceListId": "pl_456",
+    "storeId": "store_789",
+    "itemVariantsSold": [
+      {
+        "itemVaraintId": "var_001",
+        "price": "25.00",
+        "qty": 2
+      },
+      {
+        "itemVaraintId": "var_002",
+        "price": "15.50",
+        "qty": 1
+      }
+    ],
+    "posProfileId": "profile_abc"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://joptic.jethings.com/pos-checkout', {
+  method: 'POST',
+  headers: {
+    'x-store-id': 'store_789',
+    'Authorization': 'Bearer <token>',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    customerId: 'cust_123',
+    priceListId: 'pl_456',
+    storeId: 'store_789',
+    itemVariantsSold: [
+      {
+        itemVaraintId: 'var_001',
+        price: '25.00',
+        qty: 2
+      },
+      {
+        itemVaraintId: 'var_002',
+        price: '15.50',
+        qty: 1
+      }
+    ],
+    posProfileId: 'profile_abc'
+  })
+});
+
+const data = await response.json();
+```
+
+```typescript TypeScript
+interface ItemVariantSold {
+  itemVaraintId: string;
+  price: string;
+  qty: number;
+}
+
+interface CompleteOrderPayload {
+  customerId: string;
+  priceListId: string;
+  storeId: string;
+  itemVariantsSold: ItemVariantSold[];
+  amountPaid?: string;
+  posProfileId?: string;
+}
+
+const payload: CompleteOrderPayload = {
+  customerId: 'cust_123',
+  priceListId: 'pl_456',
+  storeId: 'store_789',
+  itemVariantsSold: [
+    {
+      itemVaraintId: 'var_001',
+      price: '25.00',
+      qty: 2
+    },
+    {
+      itemVaraintId: 'var_002',
+      price: '15.50',
+      qty: 1
+    }
+  ],
+  posProfileId: 'profile_abc'
+};
+
+const response = await fetch('https://joptic.jethings.com/pos-checkout', {
+  method: 'POST',
+  headers: {
+    'x-store-id': 'store_789',
+    'Authorization': 'Bearer <token>',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify(payload)
+});
+
+const data = await response.json();
+```
+</CodeGroup>
+
+**Result:**
+- TTC = (25.00 × 2) + (15.50 × 1) = **65.50**
+- amountPaid = 65.50 (default, full payment)
+- Outstanding debt = 0.00
+
+### Partial Payment
+
+<CodeGroup>
+```json Request Body
+{
+  "customerId": "cust_123",
+  "priceListId": "pl_456",
+  "storeId": "store_789",
+  "itemVariantsSold": [
+    {
+      "itemVaraintId": "var_001",
+      "price": "100.00",
+      "qty": 1
+    }
+  ],
+  "amountPaid": "75.00",
+  "posProfileId": "profile_abc"
+}
+```
+
+```bash cURL
+curl -X POST https://joptic.jethings.com/pos-checkout \
+  -H "x-store-id: store_789" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customerId": "cust_123",
+    "priceListId": "pl_456",
+    "storeId": "store_789",
+    "itemVariantsSold": [
+      {
+        "itemVaraintId": "var_001",
+        "price": "100.00",
+        "qty": 1
+      }
+    ],
+    "amountPaid": "75.00",
+    "posProfileId": "profile_abc"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://joptic.jethings.com/pos-checkout', {
+  method: 'POST',
+  headers: {
+    'x-store-id': 'store_789',
+    'Authorization': 'Bearer <token>',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    customerId: 'cust_123',
+    priceListId: 'pl_456',
+    storeId: 'store_789',
+    itemVariantsSold: [
+      {
+        itemVaraintId: 'var_001',
+        price: '100.00',
+        qty: 1
+      }
+    ],
+    amountPaid: '75.00',
+    posProfileId: 'profile_abc'
+  })
+});
+
+const data = await response.json();
+```
+</CodeGroup>
+
+**Result:**
+- TTC = 100.00
+- amountPaid = 75.00
+- Outstanding debt = 25.00
+
+---
+
+## Debt Tracking
+
+The system automatically tracks outstanding debt:
+
+```
+Outstanding Amount = Invoice TTC - SUM(Payment Allocations)
+```
+
+Multiple payments can be made against a single invoice. The debt service calculates:
+- Total paid: Sum of all payment allocations for the invoice
+- Outstanding: TTC - Total paid
+
+<Tip>
+  Use the debt service endpoints to view customer debt, make additional payments, and allocate payments to specific invoices.
+</Tip>
+
+---
+
+## Important Notes
+
+1. **TTC is Always Calculated**: Never trust client-provided TTC. The system calculates it from item prices and quantities.
+
+2. **Stock Updates are Asynchronous**: Stock is updated via a queue system. The endpoint returns immediately after creating the invoice and payment. Stock updates happen in the background.
+
+3. **Atomic Operations**: Invoice and payment creation are atomic (all or nothing). Stock updates are also atomic (all items or none).
+
+4. **Multi-Warehouse Support**: Each item variant can be in different warehouses. The system automatically finds the correct warehouse from the bin or uses the default warehouse.
+
+5. **Negative Stock**: If an item variant doesn't have a bin entry, the system will create one with negative quantity if needed (for selling non-existent stock scenarios).
+
+6. **POS Session Linking**: If `posProfileId` is provided, the invoice is linked to the current POS opening session for reporting and reconciliation.
+
+---
+
+## Integration with Other Systems
+
+### Debt Management
+- Outstanding invoices are tracked automatically
+- Use the debt service endpoints to:
+  - View customer debt
+  - Make additional payments
+  - Allocate payments to specific invoices
+
+### Stock Management
+- Stock ledger entries provide complete audit trail
+- Bin quantities are updated in real-time (via queue)
+- Stock reconciliation can be performed using stock ledger entries
+
+### Reporting
+- POS invoices can be filtered by `posOpeningId` for session-based reports
+- All invoices linked to a POS profile can be retrieved for reconciliation
+
+---
+
+## Error Handling
+
+The endpoint validates:
+- ✅ `amountPaid` ≤ calculated TTC
+- ✅ All required fields are present
+- ✅ Customer, store, and price list exist
+- ✅ Item variants are valid
+
+If validation fails, the transaction is rolled back and an error is returned.
+
+---
+
+## Related Endpoints
+
+- `GET /pos/products` - Get available products for POS
+- `GET /dept/customer/:customerId` - Get customer debt information
+- `POST /dept/customer/payment` - Make debt payment
+- `GET /sales-invoice` - Get invoice details
+
