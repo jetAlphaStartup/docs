@@ -1,0 +1,89 @@
+---
+title: 'Loki Setup'
+description: 'Log aggregation backend for Grafana on port 4100'
+icon: 'boxes-stacked'
+---
+
+## Download and install Loki
+
+```bash
+curl -O -L "https://github.com/grafana/loki/releases/latest/download/loki-linux-amd64.zip"
+sudo apt install -y unzip
+unzip loki-linux-amd64.zip
+sudo mv loki-linux-amd64 /usr/local/bin/loki
+sudo chmod +x /usr/local/bin/loki
+```
+
+## Config file
+
+Create `/etc/loki/config.yaml` — minimal single-node setup listening on port 4100:
+
+```yaml
+auth_enabled: false
+
+server:
+  http_listen_port: 4100
+
+common:
+  path_prefix: /var/lib/loki
+  storage:
+    filesystem:
+      chunks_directory: /var/lib/loki/chunks
+      rules_directory: /var/lib/loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+```
+
+## Create directories
+
+```bash
+sudo mkdir -p /var/lib/loki/chunks /var/lib/loki/rules
+sudo chown -R nobody:nogroup /var/lib/loki
+```
+
+## systemd service
+
+Create `/etc/systemd/system/loki.service`:
+
+```ini
+[Unit]
+Description=Loki log aggregation
+After=network.target
+
+[Service]
+User=nobody
+ExecStart=/usr/local/bin/loki -config.file=/etc/loki/config.yaml
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+## Enable and start
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now loki
+sudo systemctl status loki --no-pager
+```
+
+<Check>
+  Verify Loki is listening on port 4100:
+
+```bash
+  curl http://localhost:4100/ready
+  # Should return: ready
+```
+</Check>

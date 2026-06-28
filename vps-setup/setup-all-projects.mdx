@@ -1,0 +1,49 @@
+---
+title: 'Deploy All Projects'
+description: 'Pull repos and run all projects with automated CI/CD'
+icon: 'rocket'
+---
+
+## Create the apps directory
+
+When you first open the VPS terminal, create a folder to hold all your projects:
+
+```bash
+mkdir -p ~/apps
+cd ~/apps
+```
+
+## Clone all repositories
+
+```bash
+git clone git@github.com:yourorg/j-optic-backend.git
+...
+```
+
+## Run CI/CD
+
+Each project has its own CI/CD pipeline (GitHub Actions, GitLab CI, etc.) configured in the repo. Once cloned, the pipeline will automatically:
+
+- Install dependencies (`pnpm install`)
+- Run builds (`pnpm build`)
+- Run migrations (Prisma for PostgreSQL projects)
+- Start the apps under PM2
+
+```bash
+cd ~/apps
+# CI/CD pipelines trigger automatically on push, or manually via your Git provider's UI
+```
+
+<Note>
+  Make sure environment files (`.env`) are set up in each project directory with the correct database, Redis, and API credentials before triggering the pipeline.
+</Note>
+
+<Check>
+  Verify all apps are running:
+
+```bash
+  pm2 list
+```
+</Check>
+
+That's it — the automation handles the rest.

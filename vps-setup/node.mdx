@@ -1,0 +1,50 @@
+---
+title: 'Node.js Setup'
+description: 'Install Node.js 20.19.6 and pnpm on the VPS'
+icon: 'node-js'
+---
+
+## Install nvm
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+```
+
+Load nvm into the current shell (or just open a new terminal session):
+
+```bash
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+```
+
+## Install Node.js 20.19.6
+
+```bash
+nvm install 20.19.6
+nvm use 20.19.6
+nvm alias default 20.19.6
+```
+
+<Check>
+  Verify the version:
+
+```bash
+  node -v   # v20.19.6
+  npm -v
+```
+</Check>
+
+## Install pnpm 10.27.0
+
+```bash
+npm install -g pnpm@10.27.0
+pnpm -v   # 10.27.0
+```
+
+<Note>
+  All J-Optic, Jethings, and Code213 projects use pnpm as the package manager.
+</Note>
+
+<Warning>
+  nvm installs Node per-user in `~/.nvm`. If PM2 runs under a different user (e.g. via systemd), make sure that user also has nvm set up, or reference the full Node binary path in `ecosystem.config.js`.
+</Warning>

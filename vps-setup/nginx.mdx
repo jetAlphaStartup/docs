@@ -1,0 +1,93 @@
+---
+title: 'Nginx Setup'
+description: 'Reverse proxy configuration for backend apps (Nginx 1.24.0)'
+icon: 'server'
+---
+
+## Install Nginx
+
+```bash
+sudo apt install -y nginx
+sudo systemctl enable nginx
+sudo systemctl start nginx
+```
+
+<Check>
+  Verify the version:
+
+```bash
+  nginx -v
+  # nginx version: nginx/1.24.0 (Ubuntu)
+```
+</Check>
+
+## Firewall
+
+```bash
+sudo ufw allow 'Nginx Full'
+sudo ufw allow OpenSSH
+sudo ufw --force enable
+```
+
+<AccordionGroup>
+  <Accordion title="sudo ufw allow 'Nginx Full'">
+    UFW ships with predefined app profiles. `'Nginx Full'` opens both port 80 (HTTP) and port 443 (HTTPS). There are also `'Nginx HTTP'` (80 only) and `'Nginx HTTPS'` (443 only) if you want to be more restrictive — but since SSL gets added later via Certbot, both ports need to be open, so `Full` is correct here.
+  </Accordion>
+  <Accordion title="sudo ufw allow OpenSSH">
+    Opens port 22 (SSH). This step is critical — if UFW is enabled without explicitly allowing SSH first, you'll **lock yourself out of the VPS** the moment the firewall activates, since UFW defaults to denying all incoming connections.
+  </Accordion>
+  <Accordion title="sudo ufw --force enable">
+    Turns the firewall on. By default `ufw enable` asks for a `y/n` confirmation (since it could disrupt active SSH sessions) — `--force` skips that prompt, which is useful for scripting/automation but means you must be 100% sure SSH is already allowed before running it.
+  </Accordion>
+</AccordionGroup>
+
+<Check>
+  Confirm the rules took effect:
+
+```bash
+  sudo ufw status
+  # Expected: 22, 80, and 443 all ALLOW
+```
+</Check>
+
+## Example reverse proxy config
+
+`/etc/nginx/sites-available/j-optic-backend`:
+
+```nginx
+server {
+    listen 80;
+    server_name api.j-optic.com;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+
+## Enable the site
+
+```bash
+sudo ln -s /etc/nginx/sites-available/j-optic-backend /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+<Tip>
+  Repeat this pattern per app (j-optic, j-store, code213) with a different `server_name` and `proxy_pass` port.
+</Tip>
+
+## Useful checks
+
+```bash
+sudo systemctl status nginx --no-pager
+sudo nginx -t
+```

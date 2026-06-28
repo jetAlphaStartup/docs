@@ -21,6 +21,10 @@
     "url": "https://jethings.com"
   },
   "tabs": [
+   {
+      "name": "Vps Setup",
+      "url": "vps-setup"
+    },
     {
       "name": "j-store",
       "url": "j-store"
@@ -32,6 +36,22 @@
   ],
 
   "navigation": [
+     {
+      "group": "Setup",
+      "pages": [
+        "vps-setup/node",
+        "vps-setup/pm2",
+        "vps-setup/postgres",
+        "vps-setup/redis",
+        "vps-setup/nginx",
+        "vps-setup/certbot",
+        "vps-setup/git",
+        "vps-setup/setup-all-projects",
+        "vps-setup/loki",
+        "vps-setup/alloy",
+        "vps-setup/grafana"
+      ]
+    },
     {
       "group": "j-store",
       "pages": [

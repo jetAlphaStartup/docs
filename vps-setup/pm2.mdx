@@ -1,0 +1,62 @@
+---
+title: 'PM2 Setup'
+description: 'Process management for Node.js apps'
+icon: 'gears'
+---
+
+## Install PM2 globally
+
+```bash
+npm install -g pm2@6.0.14
+pm2 -v   # 6.0.14
+```
+
+## Enable PM2 on boot
+
+```bash
+pm2 startup
+# run the command it outputs (usually sudo env PATH=... pm2 startup systemd -u $USER --hp $HOME)
+```
+
+## Example `ecosystem.config.js`
+
+<Note>
+  Make sure to have this file in your project root before starting PM2.
+</Note>
+
+```javascript
+module.exports = {
+  apps: [
+    {
+      name: 'j-optic-backend',
+      script: 'dist/main.js',
+      cwd: '/var/www/j-optic-backend',
+      instances: 1,
+      autorestart: true,
+      env: {
+        NODE_ENV: 'production',
+      },
+      error_file: '/var/log/pm2/j-optic-backend-error.log',
+      out_file: '/var/log/pm2/j-optic-backend-out.log',
+    },
+  ],
+}
+```
+
+<Warning>
+  Give each app a unique `error_file` / `out_file` path. Duplicate log paths across apps will cause PM2 to write mixed/garbled logs.
+</Warning>
+
+## Common commands
+
+```bash
+pm2 start ecosystem.config.js
+pm2 list
+pm2 logs j-optic-backend
+pm2 restart j-optic-backend --update-env
+pm2 save
+```
+
+<Note>
+  Since PM2 was installed via nvm-managed npm, it lives under the same Node version's global path. If you switch the default Node version with `nvm alias default`, reinstall PM2 globally under the new version or PM2 commands may stop resolving.
+</Note>

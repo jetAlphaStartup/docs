@@ -1,0 +1,108 @@
+---
+title: 'Grafana Alloy Setup'
+description: 'Log shipping agent forwarding PM2 and Nginx logs to Loki'
+icon: 'wave-square'
+---
+
+## Install Alloy
+
+```bash
+sudo mkdir -p /etc/apt/keyrings/
+wget -q -O- https://apt.grafana.com/gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/grafana.gpg > /dev/null
+echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" | sudo tee /etc/apt/sources.list.d/grafana.list
+
+sudo apt update
+sudo apt install -y alloy
+```
+
+## Config
+
+Edit `/etc/alloy/config.alloy`:
+
+```hcl
+local.file_match "api_logs" {
+  path_targets = [
+    {
+      __path__ = "/home/deploy/apps/J-Optic-Backend/logs/api-joptic.log",
+      job      = "pm2",
+      app      = "joptic",
+      host     = "vps",
+    },
+    {
+      __path__ = "/home/deploy/apps/J-Optic-SuperAdmin/logs/api-jsuper-admin.log",
+      job      = "pm2",
+      app      = "jsuper-admin",
+      host     = "vps",
+    },
+    {
+      __path__ = "/var/log/nginx/access.log",
+      job = "nginx",
+      type = "access",
+    },
+    {
+      __path__ = "/var/log/nginx/error.log",
+      job = "nginx",
+      type = "error",
+    },
+  ]
+}
+
+loki.source.file "api_logs" {
+  targets    = local.file_match.api_logs.targets
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://127.0.0.1:4100/loki/api/v1/push"
+  }
+}
+```
+
+<AccordionGroup>
+  <Accordion title="local.file_match">
+    Defines the log files Alloy should watch. Each entry in `path_targets` is a file path plus labels (`job`, `app`, `host`, `type`) that get attached to every log line shipped from that file — these labels are what you filter on later in Grafana/Loki queries.
+  </Accordion>
+  <Accordion title="loki.source.file">
+    Tails the files matched above and forwards new log lines to the configured receiver.
+  </Accordion>
+  <Accordion title="loki.write">
+    Pushes the collected logs to Loki's push API. The endpoint matches the Loki setup running on port `4100` (`http://127.0.0.1:4100/loki/api/v1/push`).
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+  Add a new block inside `path_targets` for every new app you deploy — just point `__path__` at its PM2 log file and give it a unique `app` label.
+</Note>
+
+## systemd service
+
+The Alloy package installs a systemd service automatically at `/etc/systemd/system/alloy.service`. Enable and start it:
+
+```bash
+sudo systemctl enable alloy
+sudo systemctl start alloy
+```
+
+If you need to check or edit the service definition:
+
+```bash
+sudo systemctl cat alloy
+```
+
+<Warning>
+  Only Alloy needs restarting after editing `/etc/alloy/config.alloy` — Loki and Grafana don't need to be touched for log-source config changes.
+</Warning>
+
+## Restart Alloy after config changes
+
+```bash
+sudo systemctl restart alloy
+sudo systemctl status alloy --no-pager
+```
+
+## Verify it's shipping logs
+
+```bash
+sudo journalctl -u alloy -f
+```

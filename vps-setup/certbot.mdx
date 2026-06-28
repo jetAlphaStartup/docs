@@ -1,0 +1,62 @@
+---
+title: 'Certbot / SSL Setup'
+description: "Free SSL certificates via Let's Encrypt"
+icon: 'lock'
+---
+
+## Install Certbot
+
+```bash
+sudo apt install -y certbot python3-certbot-nginx
+```
+
+<Check>
+  Verify the install:
+
+```bash
+  certbot --version
+```
+</Check>
+
+## Generate certificate for a domain
+
+```bash
+sudo certbot --nginx -d api.j-optic.com -d www.api.j-optic.com
+```
+
+<Note>
+  Certbot automatically edits the matching Nginx server block (the one with the matching `server_name`) to add the SSL config and redirect HTTP → HTTPS.
+</Note>
+
+<Warning>
+  Make sure the domain's DNS A record already points to this VPS's IP, and that Nginx is already serving that `server_name` on port 80, before running Certbot — otherwise the HTTP-01 challenge will fail.
+</Warning>
+
+## Auto-renewal
+
+Certbot installs a systemd timer automatically. Verify it:
+
+```bash
+sudo systemctl status certbot.timer --no-pager
+sudo certbot renew --dry-run
+```
+
+## Multiple domains
+
+Repeat per subdomain/app:
+
+```bash
+sudo certbot --nginx -d store.jethings.com
+sudo certbot --nginx -d docs.jethings.com
+```
+
+## Useful checks
+
+```bash
+sudo certbot certificates
+sudo nginx -t
+```
+
+<Tip>
+  After Certbot edits the Nginx config, run `sudo nginx -t` to confirm syntax is valid, then `sudo systemctl reload nginx` if you made any further manual changes.
+</Tip>

@@ -1,0 +1,79 @@
+---
+title: 'Git Setup'
+description: 'Configure Git and SSH for secure repository access'
+icon: 'git'
+---
+
+## Install Git
+
+```bash
+sudo apt install -y git
+git --version
+```
+
+## Configure Git user
+
+```bash
+git config --global user.name "Your Name"
+git config --global user.email "your.email@example.com"
+```
+
+## SSH key setup for Git
+
+Generate an SSH key pair on the VPS (if you don't already have one):
+
+```bash
+ssh-keygen -t ed25519 -C "your.email@example.com"
+# Press Enter to accept default location (~/.ssh/id_ed25519)
+# Press Enter twice for no passphrase (or set one for security)
+```
+
+<Note>
+  Ed25519 is more secure and faster than RSA. If your Git provider doesn't support it, use `-t rsa -b 4096` instead.
+</Note>
+
+## Add SSH key to Git provider
+
+Display your public key:
+
+```bash
+cat ~/.ssh/id_ed25519.pub
+```
+
+Copy the entire output and add it to your Git provider (GitHub, GitLab, Gitea, etc.):
+
+- **GitHub**: Settings → SSH and GPG keys → New SSH key
+- **GitLab**: Preferences → SSH Keys
+- **Gitea**: Settings → SSH / GPG Keys
+
+## Test SSH connection
+
+```bash
+ssh -T git@github.com
+# Should return: Hi username! You've successfully authenticated...
+```
+
+(Replace `github.com` with your Git provider's hostname if different.)
+
+## Clone repositories over SSH
+
+Once the SSH key is added, clone repos using the SSH URL (not HTTPS):
+
+```bash
+cd ~/apps
+git clone git@github.com:yourorg/j-optic-backend.git
+git clone git@github.com:yourorg/jethings.git
+```
+
+<Warning>
+  Do NOT commit or share your private key (`~/.ssh/id_ed25519`). It lives on the VPS only. If you need to share access, create a deploy user on the VPS and give them their own SSH keypair, or use a shared deploy key on the Git provider.
+</Warning>
+
+## Useful Git commands
+
+```bash
+git status
+git log --oneline
+git pull
+git checkout -b feature-branch
+```

@@ -1,0 +1,55 @@
+---
+title: 'Redis Setup'
+description: 'Install and configure Redis 7.0.15'
+icon: 'layer-group'
+---
+
+## Install Redis
+
+```bash
+sudo apt install -y redis-server
+```
+
+<Check>
+  Verify the version:
+
+```bash
+  redis-server -v
+```
+</Check>
+
+## Configure for systemd
+
+```bash
+sudo sed -i "s/^supervised no/supervised systemd/" /etc/redis/redis.conf
+```
+
+## Enable and start
+
+```bash
+sudo systemctl enable redis-server
+sudo systemctl restart redis-server
+```
+
+<Check>
+```bash
+  redis-cli ping   # PONG
+```
+</Check>
+
+## Optional: set a password
+
+```bash
+sudo sed -i "s/^# requirepass foobared/requirepass CHANGE_ME/" /etc/redis/redis.conf
+sudo systemctl restart redis-server
+```
+
+## Verify service status
+
+```bash
+sudo systemctl status redis-server --no-pager
+```
+
+<Note>
+  Used by BullMQ queues (e.g. Jethings content cloning jobs) for job state and caching.
+</Note>
