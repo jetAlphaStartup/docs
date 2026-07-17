@@ -33,36 +33,85 @@ sudo systemctl start postgresql
 ```
 </Check>
 
-## Set password and create app user
+## Set password and create database
 
 ```bash
 sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'CHANGE_ME';"
-sudo -u postgres psql -c "CREATE USER prod_user WITH PASSWORD 'CHANGE_ME';"
-sudo -u postgres psql -c "CREATE DATABASE prod_db OWNER prod_user;"
+sudo -u postgres psql -c "CREATE DATABASE prod_db;"
 ```
+
+## Create the three role tiers
 
 <Tip>
-  Grant ownership/full privileges explicitly if Prisma migrations fail with permission errors:
-
-```bash
-  sudo -u postgres psql -d prod_db -c "GRANT ALL PRIVILEGES ON DATABASE prod_db TO prod_user;"
-  sudo -u postgres psql -d prod_db -c "ALTER DATABASE prod_db OWNER TO prod_user;"
-```
+  Always use `IN SCHEMA public` (or the relevant schema) for grants, and set default privileges so future tables inherit the correct access automatically.
 </Tip>
 
-## Remote access (optional)
-
-Only do this if you need TCP access from outside localhost (e.g. Docker bridge, remote tooling):
+### 1. Superuser — full ownership
 
 ```bash
-sudo sed -i "s/#listen_addresses = 'localhost'/listen_addresses = '*'/" /etc/postgresql/17/main/postgresql.conf
-echo "host    all             all             0.0.0.0/0               scram-sha-256" | sudo tee -a /etc/postgresql/17/main/pg_hba.conf
-sudo systemctl restart postgresql
+sudo -u postgres psql -c "CREATE USER prod_owner WITH PASSWORD 'CHANGE_ME' SUPERUSER;"
+sudo -u postgres psql -d prod_db -c "ALTER DATABASE prod_db OWNER TO prod_owner;"
 ```
 
+### 2. appuser — full CRUD on all tables (read, insert, update, delete)
+
+```bash
+sudo -u postgres psql -d prod_db -c "CREATE USER appuser WITH PASSWORD 'CHANGE_ME';"
+sudo -u postgres psql -d prod_db -c "GRANT CONNECT ON DATABASE prod_db TO appuser;"
+sudo -u postgres psql -d prod_db -c "GRANT USAGE ON SCHEMA public TO appuser;"
+sudo -u postgres psql -d prod_db -c "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO appuser;"
+sudo -u postgres psql -d prod_db -c "GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO appuser;"
+
+# Ensure future tables/sequences also get these grants automatically
+sudo -u postgres psql -d prod_db -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO appuser;"
+sudo -u postgres psql -d prod_db -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO appuser;"
+```
+
+### 3. appviewer — scoped access (mixed SELECT-only and read/write tables)
+
+```bash
+sudo -u postgres psql -d prod_db -c "CREATE USER appviewer WITH PASSWORD 'CHANGE_ME';"
+sudo -u postgres psql -d prod_db -c "GRANT CONNECT ON DATABASE prod_db TO appviewer;"
+sudo -u postgres psql -d prod_db -c "GRANT USAGE ON SCHEMA public TO appviewer;"
+
+# SELECT-only tables
+sudo -u postgres psql -d prod_db -c "GRANT SELECT ON table_a, table_b, table_c TO appviewer;"
+
+# Tables with SELECT + INSERT + UPDATE (no DELETE)
+sudo -u postgres psql -d prod_db -c "GRANT SELECT, INSERT, UPDATE ON table_d, table_e TO appviewer;"
+```
+
+<Note>
+  The exact list of which tables `appviewer` can access, and at which permission level (SELECT-only vs. SELECT/INSERT/UPDATE), is maintained in the **J-Spider-Store-Backend** repo docs. Check there before granting or revoking access for this role — do not assume the same table list applies across environments.
+</Note>
+
 <Warning>
-  Don't forget the port flag if connecting via Docker: `-p 5432:5432`. Missing it is a common cause of "connection refused" errors.
+  Never grant `appviewer` DELETE or DDL (CREATE/ALTER/DROP) privileges. If a new use case needs broader access, update the role definition in J-Spider-Store-Backend docs first, then apply the grant here.
 </Warning>
+
+## Remote access
+
+For remote database work (DBeaver, pgAdmin, TablePlus, etc.), **do not expose PostgreSQL directly to the internet**. Use an SSH tunnel through the VPS instead — Postgres stays bound to `localhost` and only the SSH port is reachable.
+
+### 1. Confirm Postgres is listening on localhost only
+
+```bash
+sudo grep -E "^listen_addresses" /etc/postgresql/17/main/postgresql.conf
+# listen_addresses = 'localhost'   <- keep this, do not change to '*'
+```
+
+### 2. Set up the SSH tunnel
+
+**DBeaver:**
+1. New connection → PostgreSQL
+2. **Main tab**: Host `localhost`, Port `5432`, Database `prod_db`, User/Password of the role you're connecting as
+3. **SSH tab**: enable "Use SSH Tunnel" → Host/IP: your VPS IP, Port `22`, User: your VPS SSH user, Auth: private key or password
+4. Test Connection — DBeaver tunnels the connection through SSH automatically
+
+**pgAdmin:**
+1. New Server → **Connection tab**: Host `localhost`, Port `5432`, Maintenance DB `prod_db`, Username/Password
+2. **SSH Tunnel tab**: enable tunneling → Tunnel host: VPS IP, Tunnel port `22`, Username, Identity file (or password)
+3. Save
 
 ## Useful checks
 
@@ -70,4 +119,8 @@ sudo systemctl restart postgresql
 sudo systemctl status postgresql --no-pager
 sudo -u postgres psql -c "SELECT version();"
 ls /usr/lib/postgresql/   # list installed major versions
+
+# Confirm role privileges
+sudo -u postgres psql -d prod_db -c "\du"
+sudo -u postgres psql -d prod_db -c "\dp"   # per-table grant list
 ```
