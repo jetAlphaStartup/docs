@@ -50,6 +50,45 @@ sudo ufw --force enable
 ```
 </Check>
 
+## Default catch-all redirect (HTTP → HTTPS)
+
+Before setting up per-app server blocks, add a catch-all block that handles any request that doesn't match a known domain (raw IP hits, typo'd hostnames, unmatched `Host` headers) and forces it onto HTTPS.
+
+`/etc/nginx/sites-available/default`:
+
+```nginx
+################################################
+########## redirect all the server #############
+################################################
+
+########## use 308 (introduced in 2015) #######
+
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    server_name _;
+
+    return 308 https://$host$request_uri;
+}
+```
+
+<AccordionGroup>
+  <Accordion title="default_server">
+    Marks this block as the fallback for port 80 — any request whose `Host` header doesn't match a `server_name` in your other configs lands here instead of silently hitting the first server block in load order. Assigned inline on the `listen` line itself; no separate config or setup needed.
+  </Accordion>
+  <Accordion title="server_name _;">
+    The underscore is a catch-all placeholder that matches nothing by name — Nginx relies on `default_server` (not this line) to route unmatched traffic here.
+  </Accordion>
+  <Accordion title="return 308 vs 301">
+    `308` preserves the original HTTP method and body on redirect (unlike the older `301`, which some clients silently downgrade to `GET`) — important if a client sends a `POST` and you don't want it dropped.
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+  Only one `server` block per `listen` port/address can have `default_server`. If it's already set elsewhere, remove it there first or `nginx -t` will fail.
+</Warning>
+
 ## Example reverse proxy config
 
 `/etc/nginx/sites-available/j-optic-backend`:
@@ -57,6 +96,7 @@ sudo ufw --force enable
 ```nginx
 server {
     listen 80;
+    listen [::]:80;
     server_name api.j-optic.com;
 
     location / {
@@ -73,16 +113,21 @@ server {
 }
 ```
 
-## Enable the site
+<Tip>
+  `listen [::]:80;` opens the same block on IPv6. If your VPS provider doesn't route IPv6 to you yet, this line is harmless — but including it now avoids re-editing every site config later if IPv6 gets enabled. Once Certbot adds SSL, it'll auto-insert `listen 443 ssl;` but won't always add the IPv6 line — add `listen [::]:443 ssl;` manually alongside it.
+</Tip>
+
+## Enable the sites
 
 ```bash
+sudo ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/
 sudo ln -s /etc/nginx/sites-available/j-optic-backend /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 ```
 
 <Tip>
-  Repeat this pattern per app (j-optic, j-store, code213) with a different `server_name` and `proxy_pass` port.
+  Repeat the per-app block pattern for each app (j-optic, j-store, code213) with a different `server_name` and `proxy_pass` port. Only the catch-all `default` block needs to exist once.
 </Tip>
 
 ## Useful checks
