@@ -1,0 +1,59 @@
+---
+title: "Reviewer Workflow"
+description: "How to validate a migration PR and apply it to the dev database"
+icon: "check"
+---
+
+This page is for whoever is responsible for reviewing a migration PR and merging its changes into the dev database. It assumes the PR has already passed normal code review — this is the DB-specific check before merge.
+
+## Workflow
+
+<Steps>
+  <Step title="Check out the PR branch and pull latest main">
+```bash
+    git checkout <branch>
+    git pull origin main
+```
+    Pulling main into the branch first (rather than testing it in isolation) surfaces any schema conflicts with migrations merged after the branch was created — better to catch drift here than after merge.
+  </Step>
+  <Step title="Regenerate the Prisma client locally">
+```bash
+    pnpm prisma:generate:local
+```
+  </Step>
+  <Step title="Run a full local bootstrap against the merged branch">
+```bash
+    pnpm db:bootstrap:local
+```
+    Watch the output closely for warnings or errors — not just a failed exit code. Prisma often prints non-fatal warnings (e.g. about implicit data loss on a column change) that won't stop the migration but should stop *you*. See [Data Migration](/migration/data-migration) for handling this safely.
+  </Step>
+  <Step title="Resolve any warnings/errors/ data migration">
+    If something's wrong — fix it on the branch (or kick it back to the developer) before proceeding. Don't merge a migration with an unresolved warning just because it "ran."
+  </Step>
+<Step title="If everything passes: force-add the migration file and merge">
+    The migration file generated in step 3 (under `prisma/migrations/`) is **not tracked by git by default** — this repo has `prisma/migrations` under `.gitignore`. Before merging, explicitly force-add it:
+
+```bash
+    git add -f prisma/migrations/migration.sql
+    git commit -m "chore: add migration for <branch/feature name>"
+```
+
+    Confirm it shows up in `git status`/the diff before pushing — a missed `-f` here means the migration file silently never reaches `main`, and `db:bootstrap:dev` will run against a schema that doesn't match what was actually reviewed.
+
+    Once confirmed committed, merge the branch into `main`.
+
+  </Step>
+  <Step title="Apply the migration to the dev database">
+```bash
+    git checkout main
+    pnpm db:bootstrap:dev
+```
+    This runs `prisma migrate deploy` against `.env.dev` (applying only pending migration files, unlike `migrate dev` which also generates new ones) followed by the dev seed script.
+  </Step>
+</Steps>
+
+<Info>
+  Repeat this exact process for every branch/PR that touches the schema — each
+  one gets its own local bootstrap-and-verify pass before merge, even if it
+  looks like a small change.
+</Info>

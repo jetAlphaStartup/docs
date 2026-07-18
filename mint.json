@@ -26,27 +26,8 @@
       "url": "vps-setup"
     },
     {
-      "name": "Database Migration",
-      "url": "database-migration"
-    },
-    {
-      "name": "Data Migration",
-      "url": "data-migration"
-    },{
-      "name": "SaaS Overview",
-      "url": "saas-overview"
-    },
-    {
-      "name": "j-studio",
-      "url": "j-studio"
-    },
-    {
-      "name": "j-superAdmin",
-      "url": "j-superAdmin"
-    },
-    {
-      "name": "j-spiderStore",
-      "url": "j-spiderStore"
+      "name": "Migration",
+      "url": "migration"
     },
     {
       "name": "j-store",
@@ -59,7 +40,7 @@
   ],
 
   "navigation": [
-     {
+    {
       "group": "Setup",
       "pages": [
         "vps-setup/node",
@@ -76,34 +57,19 @@
       ]
     },
     {
-      "group": "Database Migration",
+      "group": "Migration",
       "pages": [
-      ]
-    },
-    {
-      "group": "Data Migration",
-      "pages": [
-      ]
-    },
-    {
-      "group": "SaaS Overview",
-      "pages": [
-      ]
-    },
-    {
-      "group": "j-studio",
-      "pages": [
-      ]
-    },
-    {
-      "group": "j-superAdmin",
-      "pages": [
-      ]
-    },
-    {
-      "group": "j-spiderStore",
-      "pages": [
-      ]
+        "migration/setup-database-repo",
+        {
+          "group": "Database Migration",
+          "pages": [
+            "migration/database-migration/developer",
+            "migration/database-migration/reviewer",
+            "migration/database-migration/production"
+          ]
+        },
+        "migration/data-migration"
+      ]   
     },
     {
       "group": "j-store",

@@ -1,0 +1,95 @@
+---
+title: 'Setup Database Repo'
+description: 'Clone the jethings-database repo and configure your local environment for migrations'
+icon: 'gear'
+---
+
+This page covers getting the `jethings-database` repo running locally so you can generate, test, and apply Prisma migrations against the right database depending on your role (dev-responsible, prod-responsible, or general contributor).
+
+## 1. Clone the repo
+
+```bash
+git clone <jethings-database-repo-url>
+cd jethings-database
+```
+
+## 2. Install dependencies
+
+```bash
+pnpm install
+```
+
+## 3. Create your environment file
+
+If you're a **developer working locally**, create `.env.local`:
+
+```dotenv .env.local
+DATABASE_URL="postgresql://user:password@address:port/db"
+```
+
+<Info>
+  `.env.local` always points at your **local Postgres instance** (or a tunneled dev DB — see below). This is the file every `*:local` script in `package.json` reads via `dotenv -e .env.local`.
+</Info>
+
+## Which env files you need, by role
+
+<AccordionGroup>
+  <Accordion title="You are responsible for the dev database">
+    You need both:
+    - `.env.local` — points at your local DB for writing/testing migrations
+    - `.env.dev` — points at the dev VPS DB, used to actually apply migrations there once approved
+
+```dotenv .env.dev
+    DATABASE_URL="postgresql://user:password@address:port/db"
+```
+  </Accordion>
+  <Accordion title="You are responsible for the production database">
+    You only need `.env.prod`:
+
+```dotenv .env.prod
+    DATABASE_URL="postgresql://user:password@address:port/db"
+```
+
+    Production migrations are never run against a tunneled local session — they're run directly on the VPS (see the [Production Migration](/migration/database-migration/production) page).
+  </Accordion>
+  <Accordion title="Neither — you're just contributing schema changes">
+    You only need `.env.local`. You don't apply anything to dev or prod yourself — that's handled by whoever owns that environment, per the [Developer](/migration/database-migration/developer) and [Reviewer](/migration/database-migration/reviewer) workflow pages.
+  </Accordion>
+</AccordionGroup>
+
+## Connecting to the VPS to run migrations directly
+
+If you're the one responsible for dev or prod, migrations on the VPS itself are run by:
+1. SSH-ing into the VPS
+2. `cd`-ing into the Database repo location on the server
+3. Running the relevant `db:bootstrap:prod` command there (covered on the following pages)
+
+## Tip: tunnel the dev DB to your machine instead of editing `.env.dev` remotely
+
+If you're the dev-responsible person and want to handle migration dev on your local side for better handling the workflow or want to inspect/query the dev DB from your own machine (e.g. via Prisma Studio or a GUI client) without SSHing in every time, open an SSH tunnel:
+
+```bash
+ssh -f -N -L 5435:localhost:5432 user@address
+```
+
+<AccordionGroup>
+  <Accordion title="ssh -f -N -L 5435:localhost:5432 user@address">
+    Breaking this down:
+    - **`-L 5435:localhost:5432`** — the core of the tunnel. Forwards your local port `5435` to `localhost:5432` **as seen from the VPS** (i.e. the VPS's own Postgres, listening only on its own loopback). Anything you send to `localhost:5435` on your machine actually reaches Postgres on the remote server.
+    - **`-f`** — puts SSH in the background immediately after authentication, so it doesn't block your terminal. You get your prompt back while the tunnel stays alive.
+    - **`-N`** — tells SSH not to execute any remote command or open a shell — you only want the port forward, not an interactive session.
+    - **`user@address`** — the SSH user and host of the VPS, same credentials you'd use to SSH in normally.
+
+    After running it, you'll be prompted for the SSH password (or it'll use your key if configured).
+  </Accordion>
+</AccordionGroup>
+
+Once the tunnel is up, set `.env.dev` to point at the **local end of the tunnel**, not the VPS's real address:
+
+```dotenv .env.dev
+DATABASE_URL="postgresql://user:password@localhost:5435/db"
+```
+
+<Tip>
+  This lets you run `db:bootstrap:dev`, `prisma:studio:dev` or inspect the dev schema directly from your machine, safely, without opening Postgres to the internet or needing a new firewall rule. Kill the tunnel when done: find the process with `ps aux | grep 5435` and `kill` it, or just close the terminal session if you didn't use `-f`.
+</Tip>

@@ -1,0 +1,48 @@
+---
+title: 'Developer Workflow'
+description: 'How to create and test a schema migration locally before opening a PR'
+icon: 'code'
+---
+
+This page is for developers who need to make a schema change and get it ready for review — not for merging or deploying it.
+
+## Workflow
+
+<Steps>
+  <Step title="Fetch a fresh backup from the dev VPS">
+    Before starting any new migration, pull the latest backup from the dev database and restore it locally. Don't build a new migration against a stale local schema — that's the #1 cause of migration drift and checksum mismatches.
+  </Step>
+  <Step title="Create a new branch from the latest branch, not from main">
+    Pull the most recently merged migration branch (or main if nothing else is pending) before branching. If you branch from an outdated point, your migration file numbering/order can conflict with migrations that were merged after you branched, causing `_prisma_migrations` drift once both land in dev.
+  </Step>
+  <Step title="Make your schema changes">
+    Edit `schema.prisma` as needed.
+  </Step>
+   <Step title="Generate migration locally">
+   ```bash
+    pnpm prisma:generate:local
+    ```
+  </Step>
+  <Step title="Test the migration locally">
+```bash
+    pnpm prisma:migrate:local
+```
+    This runs `prisma migrate dev` against `.env.local` — it generates the migration SQL file and applies it to your local DB in one step, prompting you to name the migration.
+  </Step>
+  <Step title="Run the full local bootstrap to catch seed/permission issues early">
+```bash
+    pnpm db:bootstrap:local
+```
+    This chains `prisma:migrate:local` and `prisma:seed:local` (which itself runs `permissions:generate:local` first). Running the full bootstrap — not just the migration — surfaces seed-script or permission-generation errors caused by your schema change before a reviewer ever sees it.
+  </Step>
+  <Step title="Review the generated migration SQL by hand">
+    Open the new file under `prisma/migrations/`. Confirm it does what you expect — especially for column drops, type changes, or new `NOT NULL` columns, which Prisma may implement in a way that's fine for a fresh DB but destructive against real data (see the [Data Migration](/migration/data-migration) page if so).
+  </Step>
+  <Step title="Push the branch and open a PR">
+    Don't Include the migration file(s) From `prisma/migrations/` the dev-responsible will do it after check you branch
+  </Step>
+</Steps>
+
+<Warning>
+  If your migration involves dropping a column/table, renaming a field, or narrowing a type, read the migration warning Prisma prints during `migrate dev` carefully before proceeding. See [Data Migration](/migration/data-migration) for handling this safely.
+</Warning>

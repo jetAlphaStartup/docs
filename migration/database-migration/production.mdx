@@ -1,0 +1,30 @@
+---
+title: 'Production Migration'
+description: 'Applying a verified migration to the production database'
+icon: 'server'
+---
+
+This page is for whoever is responsible for the production database. By the time you're here, the migration has already been:
+- Built and tested locally by a developer
+- Reviewed, bootstrapped, and merged to dev by a reviewer
+
+Production migration is a **deploy step**, not a place to discover problems — all validation should already have happened upstream.
+
+## Workflow
+
+```bash
+pnpm db:bootstrap:prod
+```
+
+This runs `prisma migrate deploy` against `.env.prod` (applying pending migrations only — it never generates new ones or prompts), then runs the prod seed script.
+
+<Warning>
+  Before running this, make sure:
+  - The migration has been running cleanly on **dev** for a reasonable soak period, not just merged minutes ago.
+  - You've pulled the **latest production backup** first, so you have a fast rollback path if something unexpected happens.
+  - Nothing about dev's data shape (volume, edge cases, nulls) differs meaningfully from prod in a way that could make a migration that was fine on dev behave differently on prod.
+</Warning>
+
+<Note>
+  The dev-responsible person is expected to have already surfaced any risk (destructive changes, expected warnings) before this point — this step should be uneventful. If it isn't, stop and coordinate with dev before continuing.
+</Note>
