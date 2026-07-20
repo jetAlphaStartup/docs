@@ -4,8 +4,12 @@ description: 'Migrating existing data safely when a schema change would otherwis
 icon: 'database'
 ---
 
-**Database migration** changes the *shape* of your tables (columns, types, constraints). **Data migration** moves or transforms the *existing rows* so they survive that shape change intact. A schema migration completing without an error does **not** mean no data was lost — Prisma will happily drop a column, narrow a type, or add a `NOT NULL` field with a default, silently discarding whatever was there before if you don't handle it explicitly.
+**Database migration** changes the *shape* of your tables (columns, types, constraints).
 
+**Data migration** moves or transforms the *existing rows* so they survive that shape change intact. A schema migration completing without an error does **not** mean no data was lost — Prisma will happily drop a column, narrow a type, or add a `NOT NULL` field with a default, silently discarding whatever was there before if you don't handle it explicitly.
+
+**No data loss is acceptable at any environment level.** Dev and local work from the same backup — none of it is throwaway data.
+ 
 ## The core rule
 
 <Warning>
@@ -18,164 +22,226 @@ Know **which environment** you're touching — but note that "low risk" does **n
 - **Dev VPS** — shared team data restored from the same backup. No data loss is acceptable — confirm every warning is resolved before applying.
 - **Prod VPS** — real user data. Treat every warning here as a hard stop until resolved.
 
-## Recommended approach: expand → migrate data → contract
-
-Instead of a single migration that both changes shape and risks losing data, split it into two or three migrations:
-
-1. **Expand** — add the new column/table alongside the old one (nullable, no constraint yet).
-2. **Migrate the data** — run a script that copies/transforms old data into the new shape.
-3. **Contract** — a follow-up migration that drops the old column/table or adds the `NOT NULL`/unique constraint, once you've confirmed the data migration succeeded.
-
-This keeps the destructive step isolated and reversible, and makes the data-migration script itself reviewable in the same PR as the schema change — database migration and data migration should be proposed and reviewed together, not treated as separate concerns.
-
-## Writing the data migration: TS script via tsx
-
-Since we're already on Prisma + TypeScript + `tsx`, data migrations are plain scripts under `prisma/data-migrations/`, run through `tsx` with no new dependency — fitting the same pattern as `permissions:generate:*`.
-
-### 1. Track which migrations have run
-
-Add a tracking model so old scripts can be safely deleted later without breaking new clones of the repo:
-
-```prisma
-model DataMigration {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  appliedAt DateTime @default(now())
-}
-```
-
-Run a schema migration to create it:
-
-```bash
-pnpm prisma:migrate:local
-```
-
-### 2. Create the runner
-
-`prisma/data-migrations/run-all.ts`:
-
-```typescript
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
-
-const migrations = [
-  {
-    name: "2026-07-01-backfill-user-email",
-    fn: () => import("./2026-07-01-backfill-user-email"),
-  },
-  // Add new migrations here as you create them
-];
-
-async function runAll() {
-  try {
-    for (const migration of migrations) {
-      const exists = await prisma.dataMigration.findUnique({
-        where: { name: migration.name },
-      });
-
-      if (exists) {
-        console.log(`✓ ${migration.name} already applied, skipping`);
-        continue;
-      }
-
-      console.log(`→ Running ${migration.name}...`);
-      const mod = await migration.fn();
-      await mod.default(prisma);
-
-      await prisma.dataMigration.create({
-        data: { name: migration.name, appliedAt: new Date() },
-      });
-
-      console.log(`✓ ${migration.name} completed`);
-    }
-    console.log("\n✓ All data migrations completed");
-  } catch (error) {
-    console.error("Data migration failed:", error);
-    throw error;
-  } finally {
-    await prisma.$disconnect();
-  }
-}
-
-runAll().catch(console.error);
-```
-
-### 3. Write a migration file
-
-`prisma/data-migrations/2026-07-01-backfill-user-email.ts`:
-
-```typescript
-import { PrismaClient } from "@prisma/client";
-
-export default async function migrate(prisma: PrismaClient) {
-  const usersWithoutEmail = await prisma.user.findMany({
-    where: { email: null },
-  });
-
-  for (const user of usersWithoutEmail) {
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { email: `user-${user.id}@placeholder.local` },
-    });
-  }
-
-  console.log(`✓ Backfilled ${usersWithoutEmail.length} emails`);
-}
-```
-
-Export a **default async function** taking `prisma: PrismaClient` — the runner passes its own client instance in.
-
-### 4. Wire it into bootstrap — data migrations run first
-
-Data migrations must run **after** the schema migration that expands the shape, not before:
-
-```json
-"db:bootstrap:local": "dotenv -e .env.local -- pnpm prisma:migrate:local && dotenv -e .env.local -- tsx prisma/data-migrations/run-all.ts && dotenv -e .env.local -- pnpm prisma:seed:local",
-
-"db:bootstrap:dev": "dotenv -e .env.dev -- pnpm prisma:migrate:dev && dotenv -e .env.dev -- tsx prisma/data-migrations/run-all.ts && dotenv -e .env.dev -- pnpm prisma:seed:dev",
-
-"db:bootstrap:stage": "dotenv -e .env.stage -- pnpm prisma:migrate:stage && dotenv -e .env.stage -- tsx prisma/data-migrations/run-all.ts && dotenv -e .env.stage -- pnpm prisma:seed:stage",
-
-"db:bootstrap:prod": "dotenv -e .env.prod -- pnpm prisma:migrate:prod && dotenv -e .env.prod -- tsx prisma/data-migrations/run-all.ts && dotenv -e .env.prod -- pnpm prisma:seed:prod"
-```
-
-Order: **schema migration (expand) → data migration → seed**. This matches the expand → migrate → contract pattern directly: the schema migration adds the new nullable column/table first (the "expand" step), then the data migration script backfills/transforms rows into that new shape, and only a later, separate schema migration does the "contract" (dropping the old column, adding `NOT NULL`, etc.) once you've confirmed the data migration succeeded.
-
+##  Recommended approach The Pattern : Expand → Backfill → Contract
+ 
+Every breaking schema change is split into **three separate Prisma migrations**, in this exact order:
+ 
+1. **Expand** — add the new column/table. Nullable, no constraints. Old code keeps working.
+2. **Backfill** — a pure SQL migration that copies/transforms data from the old shape into the new shape.
+3. **Contract** — drop the old column, add `NOT NULL`/unique constraints, etc. Only safe once backfill has run.
+Because all three are standard Prisma migrations, `prisma migrate deploy` runs them **in one batch, in folder-timestamp order** — expand, then backfill, then contract, every time. There is no separate runner, no external script, and no risk of contract dropping data before backfill has a chance to copy it.
+ 
 <Warning>
-  For a **rename**, **column drop**, or **type narrowing**: expand first (new column added, old one still present), then run the data migration to populate the new column from the old one, then contract in a later migration once verified.
-
-  For a **table drop**: don't rely on a data migration script alone. Take a full backup of the table before the schema migration runs, and only write a restore/backfill script later, if and when it turns out that data is actually needed — there's no "expand" step for a dropped table, so the backup is your only safety net.
+  Never let a contract migration (drop column / add NOT NULL) sit in the same batch with an earlier timestamp than its backfill migration. Since `prisma migrate deploy` executes strictly by folder name order, getting this order wrong means data loss with no warning.
 </Warning>
+## Why pure SQL instead of a TS script
+ 
+Data migrations used to be plain TypeScript files run through `tsx`, tracked in a `DataMigration` table, and wired into `db:bootstrap:*` after the schema migration.
+ 
+That approach has one structural problem: it runs the TS runner as a **separate step after** `prisma migrate deploy` completes. If a contract migration lands in the same `prisma migrate deploy` batch as its matching backfill, the contract migration (SQL, run by Prisma) executes before the TS script (run afterward) ever gets a chance to backfill the data.
+ 
+Writing the backfill as a **standard Prisma migration** removes that gap entirely — it becomes just another `migration.sql` file, so it's guaranteed to run in its correct position in the sequence, with no external orchestration.
+ 
+## How to write a backfill migration
+ 
+### 1. Generate an empty migration
+ 
+```bash
+npx prisma migrate dev --create-only --name backfill_new_column
+```
+ 
+### 2. Write the transform as pure SQL
+ 
+Open the generated `migration.sql` and write the transform directly — no JS, no Prisma Client calls.
+ 
+Simple case (single `UPDATE`/`INSERT`, no row-by-row logic needed):
+ 
+```sql
+BEGIN;
+ 
+UPDATE users
+SET new_email = LOWER(TRIM(old_email))
+WHERE new_email IS NULL AND old_email IS NOT NULL;
+ 
+COMMIT;
+```
+ 
+<Note>
+  Every migration file must be wrapped in its own `BEGIN; ... COMMIT;` block. This guarantees the transform is all-or-nothing — if any statement in the file fails, the whole migration rolls back instead of leaving data half-migrated. Prisma already wraps each migration in a transaction by default, but wrap it explicitly anyway so the file is correct even if run manually outside Prisma (e.g. directly against prod with `psql` during an incident).
+</Note>
+### 3. Complex logic — use PL/pgSQL, not a TS loop
+ 
+Postgres handles more than it looks like at first. Row-by-row logic, conditionals, and validation can all live inside the migration as a `FUNCTION` or `PROCEDURE`:
+ 
+```sql
+BEGIN;
+ 
+CREATE OR REPLACE FUNCTION backfill_user_emails() RETURNS void AS $$
+DECLARE
+  rec RECORD;
+BEGIN
+  FOR rec IN SELECT id, old_email FROM users WHERE new_email IS NULL LOOP
+    UPDATE users
+    SET new_email = LOWER(TRIM(rec.old_email))
+    WHERE id = rec.id;
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+ 
+SELECT backfill_user_emails();
+DROP FUNCTION backfill_user_emails();
+ 
+COMMIT;
+```
+ 
+What PL/pgSQL supports inside a migration:
+ 
+- Loops (`FOR`, `WHILE`, `LOOP`) and conditionals (`IF/ELSIF/ELSE`, `CASE`)
+- Variables, records, arrays
+- Exception handling (`BEGIN ... EXCEPTION WHEN ... END`)
+- Dynamic SQL (`EXECUTE`), recursive CTEs, `jsonb` manipulation
+- Chunked/batched updates (`LIMIT`/`OFFSET` loops) to avoid long locks
+**The one hard boundary:** PL/pgSQL cannot make outbound HTTP calls or call external APIs. Everything else — conditional transforms, per-row processing, validation — is doable in SQL.
+ 
+### 4. Control execution order
+ 
+Prisma applies migrations in alphanumeric folder-name order. make sure to land it like this:
+ 
+```
+20260719000001_expand_user_contacts/
+20260719000002_backfill_user_contacts/
+20260719000003_contract_users_phone/
+```
+ 
+## Full example: moving a field from one table to another
+ 
+Scenario: move `phone_number` from `users` to a new `user_contacts` table.
+ 
+**Migration 1 — Expand** (`20260719000001_expand_user_contacts/migration.sql`)
+ 
+```sql
+BEGIN;
+ 
+CREATE TABLE user_contacts (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  phone_number TEXT,
+  created_at TIMESTAMP DEFAULT now()
+);
+ -- Phone numbers are now stored in user_contacts instead of users.
+ALTER TABLE users
+ALTER COLUMN phone_number DROP NOT NULL;
+COMMIT;
+```
+ 
+**Migration 2 — Backfill** (`20260719000002_backfill_user_contacts/migration.sql`)
+ 
+```sql
+BEGIN;
+ 
+CREATE OR REPLACE FUNCTION backfill_user_contacts() RETURNS void AS $$
+DECLARE
+  rec RECORD;
+BEGIN
+  FOR rec IN SELECT id, phone_number FROM users WHERE phone_number IS NOT NULL LOOP
+    INSERT INTO user_contacts (user_id, phone_number)
+    VALUES (rec.id, rec.phone_number);
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+ 
+SELECT backfill_user_contacts();
+DROP FUNCTION backfill_user_contacts();
+ 
+COMMIT;
+```
+ 
+**Migration 3 — Contract** (`20260719000003_contract_users_phone/migration.sql`)
+ 
+```sql
+BEGIN;
+ 
+ALTER TABLE users DROP COLUMN phone_number;
+ 
+COMMIT;
+```
+ 
+Why this order is safe: migration 1 only adds a table (old code unaffected), migration 2 copies data over while the old column still exists, migration 3 only drops the old column once the copy is confirmed complete — and all three are guaranteed to run in this order in one `prisma migrate deploy`.
+ 
+## Batching for large tables
+ 
+A single-statement backfill is fine for small-to-medium tables. For millions of rows, batch it — a single multi-million-row transaction holds locks too long and bloats the table (MVCC keeps old row versions around until commit).
+ 
+<Note>
+  A `PROCEDURE` (not a `FUNCTION`) is required for batching, because only a procedure called via `CALL` can issue an intermediate `COMMIT` inside its loop. A `FUNCTION` runs as one transaction start to finish.
+</Note>
+<Warning>
+  Don't batch with `LIMIT`/`OFFSET`. Each iteration re-scans and discards every row before its offset, so the query gets slower with every batch — by the time you're at offset 5 million, Postgres scans 5 million rows just to find the next 5,000. Use cursor (keyset) pagination instead: chunk by `id` range, so every batch hits the index directly and stays the same speed from the first row to the last.
+</Warning>
+```sql
+BEGIN;
+ 
+CREATE OR REPLACE PROCEDURE backfill_user_contacts() AS $$
+DECLARE
+  batch_size INTEGER := 5000;
+  last_id INTEGER := 0;
+  max_id INTEGER;
+BEGIN
+  SELECT COALESCE(MAX(id), 0) INTO max_id FROM users;
+ 
+  WHILE last_id < max_id LOOP
+    INSERT INTO user_contacts (user_id, phone_number)
+    SELECT id, phone_number
+    FROM users
+    WHERE id > last_id
+      AND id <= last_id + batch_size
+      AND phone_number IS NOT NULL;
+ 
+    last_id := last_id + batch_size;
+    COMMIT;
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+ 
+CALL backfill_user_contacts();
+DROP PROCEDURE backfill_user_contacts();
+ 
+COMMIT;
+```
+ 
+Each iteration filters on `id`, which is indexed (primary key), so every batch is a fast index range scan — no re-scanning already-processed rows, no slowdown as the loop progresses.
+ 
+**Rule of thumb:**
+ 
+| Table size | Approach |
+|---|---|
+| Thousands of rows | Single statement, one transaction |
+| Millions of rows | `PROCEDURE` with batched `COMMIT`s |
+| Tens of millions+ | Consider running outside the normal deploy window entirely |
+ 
+Batching isn't free — it trades speed for reduced lock time. If the table is small or there's no concurrent prod traffic to protect, skip it; the loop/commit overhead makes batching slower than a single `UPDATE` for that case.
 
-### Adding a new data migration
-
-1. Create the file under `prisma/data-migrations/` with a date prefix.
-2. Write the transform (see template above).
-3. Add an entry to the `migrations` array in `run-all.ts`.
+## For a table drop
+ 
+Don't rely on a backfill migration alone. Take a full backup of the table before the contract migration runs — there's no "expand" step for a dropped table, so the backup is the only safety net. Only write a restore script later, if it turns out the data is actually needed.
+ 
+## Adding a new data migration — checklist
+ 
+1. Generate the migration: `npx prisma migrate dev --create-only --name backfill_<description>`.
+2. Write the transform as pure SQL, wrapped in `BEGIN; ... COMMIT;` (or a batched `PROCEDURE` for large tables).
+3. Confirm folder timestamps place it strictly between its expand and contract migrations.
 4. Test locally: `pnpm db:bootstrap:local`.
-5. Commit the data migration file, the `run-all.ts` update, **and** the schema migration in the same PR.
-
-<Tip>
-  Because every run is logged in the `DataMigration` table, old script files can later be deleted from the repo without breaking new environments — they simply won't be in the `migrations` array anymore, and their row in the table stays as history.
-</Tip>
+5. Commit the expand migration, the backfill migration, and the contract migration together in the same PR.
+## Mandatory communication
+ 
+- **Developer → Reviewer:** Call out explicitly in the PR description that a data migration exists, what it does, and which environments it affects.
+- **Reviewer → Prod-responsible:** State explicitly whether the data migration ran as part of the release, what it did on dev, and any anomalies. "It worked on dev" is not a handoff.
+ 
 
 ## Checklist before merging a migration with data-loss risk
 
 - [ ] Read Prisma's migration warning in full — don't skip past it
 - [ ] Confirm whether the affected column/table/field currently holds real data (no environment is exempt — see above)
-- [ ] If yes: write the expand → migrate → contract plan, add the data migration file, and register it in `run-all.ts`
+- [ ] If yes: write the expand → backfill → contract plan, add the data migration using `npx prisma migrate dev --create-only --name`
 - [ ] Test the full bootstrap (`pnpm db:bootstrap:local`) against a **real backup**, not an empty local DB
-- [ ] Confirm the data migration is committed in the **same PR** as the schema migration
 - [ ] Get explicit reviewer sign-off specifically on the data-migration step, separate from normal code review
-
-## Communication is mandatory, not optional
-
-<Warning>
-  **If a data migration exists — even a small one-line backfill — you must say so explicitly.** Silence is not an acceptable default here.
-
-  - **Developer → Reviewer:** When opening the PR, explicitly call out in the PR description that a data migration is included, what it does, and which environment(s) it affects. Don't assume the reviewer will notice it just by reading the diff — call it out in words.
-  - **Reviewer → Prod-responsible:** When handing off a migration for production deployment, explicitly state whether a data migration ran as part of it, what it did on dev, and any anomalies observed (warnings, skipped rows, unexpected counts). Don't let "it worked on dev" stand in for a real handoff — the prod-responsible person needs the same context you had, in writing.
-
-  A missed data migration handoff is exactly how "the schema migration succeeded" quietly becomes "we lost data" three environments later. This step is not optional, regardless of how small or obvious the migration seems.
-</Warning>
